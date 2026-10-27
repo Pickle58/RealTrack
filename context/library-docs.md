@@ -274,22 +274,27 @@ clerk init              # detects Next.js, installs @clerk/nextjs, scaffolds pro
 clerk skill install     # optional: Clerk agent skills (or: npx skills add clerk/skills)
 ```
 
+This project is already linked to the **RealTrack** application (`app_3LIJOkiAsmRiDc7ef3O04uzwKEz`), so feature 10 reviews what `clerk init` generates rather than creating a new app. To re-pull keys for the linked app:
+
+```bash
+clerk apps list --json          # application ids and names
+clerk link --app app_...        # link this repo to an application
+clerk env pull                  # writes publishable + secret keys to .env.local
+```
+
+`clerk env pull` detects **Vite**, so it writes `VITE_CLERK_PUBLISHABLE_KEY`. Rename it to `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and move the secret into `.dev.vars` (see Environment and secrets below).
+
 `clerk init` generates files for a generic Next.js app. **Review and conform them** to `architecture.md` (route groups, `proxy.ts` at the repo root, tokens, Inter font). Delete any demo UI it adds. Other useful commands: `clerk api` (Backend API client), `clerk config pull`, `clerk open <page>`.
 
 ### proxy.ts (Next.js 16)
 
+`createRouteMatcher` is **deprecated in `@clerk/nextjs` 7** and removed in the next major. Keep `clerkMiddleware()` bare and protect each resource instead:
+
 ```typescript
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+// proxy.ts
+import { clerkMiddleware } from "@clerk/nextjs/server";
 
-const isProtected = createRouteMatcher([
-  "/dashboard(.*)",
-  "/properties/new(.*)",
-  "/properties/(.*)/edit(.*)",
-]);
-
-export default clerkMiddleware(async (auth, req) => {
-  if (isProtected(req)) await auth.protect();
-});
+export default clerkMiddleware();
 
 export const config = {
   matcher: [
@@ -299,7 +304,13 @@ export const config = {
 };
 ```
 
-Use the matcher `clerk init` generates if it differs. Verify the protected-route patterns actually block signed-out requests.
+```typescript
+// in every protected page, route handler and Server Action
+const { isAuthenticated, userId } = await auth();
+if (!isAuthenticated) await auth.protect();
+```
+
+Use the matcher `clerk init` generates if it differs. Verify the protection actually blocks signed-out requests.
 
 ### Provider and components
 
@@ -339,8 +350,9 @@ export async function getFreshRole(userId: string): Promise<Role> {
 
 ### Secrets and environment
 
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` is inlined at build time: it must be present in `.env.local` (or CI env) when running `cf build` / `cf deploy`.
-- `CLERK_SECRET_KEY` is declared with `bindings.secret()`. Locally it goes in `.dev.vars`; for deployed environments it is uploaded with `cf deploy --secrets-file`. If Clerk cannot read it at runtime, check how vinext exposes bindings to `process.env`.
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` is inlined at build time: it must be present in `.env.local` (or CI env) when running `cf build` / `cf deploy` **and** when `cf dev` starts, because the value is baked into the client bundle at server start. Changing it requires restarting `cf dev`.
+- `CLERK_SECRET_KEY` is declared with `bindings.secret()` in `cloudflare.config.ts`. That declaration is what makes the value visible — a value in `.dev.vars` alone is not. Confirmed 2026-10-27: with the secret only in `.dev.vars`, Clerk threw "Missing secretKey" on every request.
+- A first `cf deploy` of a Worker with a declared secret needs the value up front: `cf deploy --secrets-file .dev.vars` (the file is already in `SECRET_NAME=value` form and is gitignored).
 - Clerk's keyless mode may be used for the first local run; link a real Clerk application before any deploy.
 - Development and production are separate Clerk instances: keys, session-token customization, and role metadata must be set up again for production.
 
@@ -352,7 +364,8 @@ export async function getFreshRole(userId: string): Promise<Role> {
 - Session claims can be stale for up to about a minute after a role change; use `getFreshRole` before deletes.
 - Do not copy Clerk profile data into D1. Read it from Clerk when needed.
 - Mock `@clerk/nextjs/server` in unit tests.
-- **vinext + Clerk (known issue, cloudflare/vinext#4221):** `cf dev` can crash at startup with `ReferenceError: require is not defined` from `@clerk/nextjs/dist/esm`. Production builds are reported to work. First check whether your installed Clerk and vinext versions already fix it. If not, add a dev-only Vite plugin in `vite.config.ts` that rewrites bare `require("x")` calls in `@clerk/nextjs/dist/esm` into hoisted `import * as … from "x"`. Record any workaround in `progress-tracker.md`.
+- **vinext + Clerk (known issue, cloudflare/vinext#4221):** `cf dev` crashes at startup with `ReferenceError: require is not defined` from `@clerk/nextjs/dist/esm` because the ESM build calls bare `require()` in four modules (`runtime/node/safe-node-apis.js` for `node:fs`/`node:path`, `app-router/server/auth.js` and `currentUser.js` for `server-only`, `client-boundary/hooks/usePathnameWithoutCatchAll.js` for `next/navigation`), and the dev module runner evaluates them unbundled inside workerd. Reproduced on vinext 1.3.1 with `@clerk/nextjs` 7.9.21 — neither is fixed upstream.
+- **The `clerkRequireToImport()` plugin in `vite.config.ts` is already the fix.** It rewrites those bare calls into hoisted `import * as … from "x"` for server environments, dev only (`apply: "serve"`). `cf build` and `cf deploy` never need it: the production bundler rewrites the calls itself. Keep the plugin until a vinext or Clerk release removes the bare `require()`s.
 - `clerk init` generates a generic Next.js setup. Do not let it add a Wrangler config or OpenNext files.
 
 ---
@@ -379,10 +392,20 @@ if (!res.ok) return null;
 
 ## shadcn/ui
 
-- Install components through the CLI (`pnpm dlx shadcn@latest add button input card ...`) into `components/ui`.
-- Do not edit generated primitives except to map classes to project tokens.
+The project uses the classic **Radix**-based components (the unified `radix-ui` package) with the `new-york` style and CSS variables.
+
+- `components.json` is committed and points at `app/globals.css`. Adding a component: `pnpm dlx shadcn@latest add <name> -y`, then run the token check below.
+- **`shadcn init` does not work non-interactively here.** With no TTY it waits on a prompt and never returns; it also detects Vite rather than the Next-on-vinext setup. The committed `components.json` is the result of doing that step by hand. Do not re-run `init`; edit `components.json` instead if the config must change.
+- `add` writes `import { cn } from "cn"` and installs the `cn` npm package, plus `next-themes` for `sonner`. Both are unapproved dependencies: rewrite the import to `@/lib/utils` and drop `next-themes` (`sonner.tsx` is pinned to `theme="light"`).
+- **Always check a newly added component for token drift** before committing it: replace raw colour classes (`text-white`, `bg-black/50`), rewrite shadcn's neutral `bg-accent` hovers to `bg-surface-secondary`, and use `bg-surface` for content surfaces where the generator writes `bg-background` or `bg-transparent`. The adjustments already made are listed in `ui-registry.md`.
+- Do not edit generated primitives for anything other than mapping classes to project tokens.
 - Use `Form`-style composition with `react-hook-form` + Zod resolver for the property form.
 - Use `sonner` for toasts, `AlertDialog` for destructive confirms (delete property, delete media).
+- Overlay scrims use `bg-overlay` (`--color-overlay`), not `bg-black/50`.
+
+### Testing overlays
+
+Radix keeps a dialog, sheet or alert dialog mounted until its exit animation fires `animationend`. In a headless or **hidden** browser tab the document's animation timeline does not advance, so `document.timeline.currentTime` stays `0`, the animation never ends, and the overlay stays in the DOM even though `data-state` is `closed`. That is an artefact of the test environment, not a bug: inject `*,*::before,*::after{animation:none!important}` before interacting when you need to assert that an overlay closes.
 
 ---
 

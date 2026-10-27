@@ -17,10 +17,18 @@
     "db:migrate:remote": "cf d1 migrations apply <DATABASE_ID> --pattern \"migrations/*/migration.sql\""
   },
   "dependencies": {
+    "@clerk/nextjs": "^7.9.21",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "drizzle-orm": "latest",
+    "lucide-react": "^1.61.0",
+    "radix-ui": "^1.8.1",
     "react": "latest",
     "react-dom": "latest",
     "react-server-dom-webpack": "latest",
+    "sonner": "^2.0.8",
+    "tailwind-merge": "^3.7.0",
+    "tw-animate-css": "^1.4.0",
     "vinext": "latest",
     "zod": "latest"
   },

@@ -13,6 +13,10 @@ export default defineConfig({
     },
     env: {
       ASSETS: bindings.assets(),
+      DB: bindings.d1({ name: "real-estate-tracker-db" }),
+      KV: bindings.kv(),
+      MEDIA: bindings.r2({ name: "real-estate-tracker-media" }),
+      CLERK_SECRET_KEY: bindings.secret(),
     },
   }),
 });

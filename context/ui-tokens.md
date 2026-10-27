@@ -79,6 +79,9 @@ When shadcn generates components using its own variables (`bg-primary`, `text-mu
   --color-error-light: #FEE2E2;
   --color-error-foreground: #FFFFFF;
 
+  /* Modal overlay (dialog, alert dialog, sheet) */
+  --color-overlay: rgb(17 24 39 / 50%);
+
   /* Border radius */
   --radius-sm: 4px;
   --radius-md: 8px;
@@ -163,6 +166,10 @@ Font: **Inter** via `next/font/google`. Never use a fallback system font as prim
 ---
 
 ## Component Tokens
+
+### Overlay
+
+Dialog, alert-dialog and sheet scrims use `bg-overlay` (`--color-overlay`). Mapped to `--color-text-primary` at 50% so no raw color class is used anywhere.
 
 ### Cards
 
