@@ -1,0 +1,45 @@
+{
+  "name": "real-estate-tracker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.10.1",
+  "scripts": {
+    "dev": "cf dev",
+    "build": "cf build",
+    "start": "vite preview",
+    "lint": "eslint .",
+    "typecheck": "cf workers types && tsc --noEmit",
+    "test": "vitest run",
+    "deploy": "cf deploy",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "cf d1 migrations apply <DATABASE_ID> --local --pattern \"migrations/*/migration.sql\"",
+    "db:migrate:remote": "cf d1 migrations apply <DATABASE_ID> --pattern \"migrations/*/migration.sql\""
+  },
+  "dependencies": {
+    "drizzle-orm": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "react-server-dom-webpack": "latest",
+    "vinext": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "beta",
+    "@eslint/js": "latest",
+    "@tailwindcss/postcss": "latest",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "@vitejs/plugin-react": "latest",
+    "@vitejs/plugin-rsc": "latest",
+    "cf": "latest",
+    "drizzle-kit": "latest",
+    "eslint": "latest",
+    "tailwindcss": "latest",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "latest",
+    "vite": "8.3.0",
+    "vitest": "latest"
+  }
+}

@@ -1,0 +1,17 @@
+# dependencies
+node_modules
+
+# local environment, vars and secrets
+.env*
+.dev.vars*
+.secrets*
+
+# framework and build output
+.next
+next-env.d.ts
+/dist/
+.vinext/
+.cloudflare/
+
+# tooling
+.freebuff/
