@@ -2,9 +2,14 @@
 node_modules
 
 # local environment, vars and secrets
-.env*
-.dev.vars*
+.env
+.env*.local
+.dev.vars
 .secrets*
+
+# committed templates for the files above
+!.env.example
+!.dev.vars.example
 
 # framework and build output
 .next
