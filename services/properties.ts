@@ -80,3 +80,18 @@ export async function getFeaturedProperties(
   const result = await searchActiveProperties({ ...defaultPropertySearch, pageSize: limit });
   return result.items;
 }
+
+// Phase 1 dashboard preview: every status, newest edit first. Phase 2 scopes this to the signed-in owner.
+export async function listDashboardProperties(): Promise<PropertyListItem[]> {
+  return [...mockProperties]
+    .sort((a, b) => b.updatedAt - a.updatedAt || a.id.localeCompare(b.id))
+    .map(toListItem);
+}
+
+// Any status, so the edit form can prefill drafts, sold and off-market listings.
+export async function getPropertyForEdit(id: string): Promise<PropertyDetail | null> {
+  const property = mockProperties.find((item) => item.id === id);
+  if (!property) return null;
+
+  return { property, images: property.images };
+}
