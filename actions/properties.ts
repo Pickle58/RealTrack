@@ -3,9 +3,12 @@
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/action-result";
 import { fail, ok } from "@/lib/action-result";
-import { getCurrentUser } from "@/lib/auth/current-user";
+import { requireUser } from "@/lib/auth/current-user";
+import { canWriteListings, getFreshRole, ownerScope } from "@/lib/auth/guards";
 import * as propertiesService from "@/services/properties";
 import { propertyInputSchema } from "@/validations/property";
+
+const FORBIDDEN = "You do not have permission to change listings.";
 
 function revalidateListings(): void {
   revalidatePath("/dashboard");
@@ -17,7 +20,8 @@ export async function createProperty(
   formData: FormData,
 ): Promise<ActionResult<{ id: string }>> {
   try {
-    const user = await getCurrentUser();
+    const user = await requireUser();
+    if (!canWriteListings(user.role)) return fail(FORBIDDEN);
     const parsed = propertyInputSchema.safeParse(Object.fromEntries(formData));
     if (!parsed.success) {
       return fail("Please fix the highlighted fields.", parsed.error.flatten().fieldErrors);
@@ -38,13 +42,14 @@ export async function updateProperty(
   formData: FormData,
 ): Promise<ActionResult<{ id: string }>> {
   try {
-    const user = await getCurrentUser();
+    const user = await requireUser();
+    if (!canWriteListings(user.role)) return fail(FORBIDDEN);
     const parsed = propertyInputSchema.safeParse(Object.fromEntries(formData));
     if (!parsed.success) {
       return fail("Please fix the highlighted fields.", parsed.error.flatten().fieldErrors);
     }
 
-    const updated = await propertiesService.update(id, parsed.data, user.id);
+    const updated = await propertiesService.update(id, parsed.data, ownerScope(user));
     if (!updated) return fail("That property could not be found.");
     revalidateListings();
     revalidatePath(`/properties/${id}`);
@@ -57,8 +62,11 @@ export async function updateProperty(
 
 export async function deleteProperty(id: string): Promise<ActionResult> {
   try {
-    const user = await getCurrentUser();
-    const removed = await propertiesService.remove(id, user.id);
+    const user = await requireUser();
+    // Re-read the role from Clerk: the session claim can lag behind a role change.
+    const role = await getFreshRole(user.id);
+    if (!canWriteListings(role)) return fail(FORBIDDEN);
+    const removed = await propertiesService.remove(id, ownerScope({ id: user.id, role }));
     if (!removed) return fail("That property could not be found.");
     revalidateListings();
     return ok(undefined);

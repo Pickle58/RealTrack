@@ -2,18 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Show } from "@clerk/nextjs";
 import { NavbarAuth } from "@/components/layout/NavbarAuth";
-import { getMockAuthState } from "@/lib/mock-auth";
 import { cn } from "@/lib/utils";
 
 export function Navbar() {
   const pathname = usePathname();
-  const isSignedIn = getMockAuthState() !== "signed_out";
 
-  const links = [
-    { href: "/properties", label: "Browse" },
-    ...(isSignedIn ? [{ href: "/dashboard", label: "Dashboard" }] : []),
-  ];
+  const links = [{ href: "/properties", label: "Browse" }];
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-surface">
@@ -39,6 +35,19 @@ export function Navbar() {
                 </Link>
               );
             })}
+            <Show when="signed-in">
+              <Link
+                className={cn(
+                  "text-sm font-medium",
+                  pathname === "/dashboard" || pathname.startsWith("/dashboard/")
+                    ? "text-accent"
+                    : "text-text-secondary hover:text-text-primary",
+                )}
+                href="/dashboard"
+              >
+                Dashboard
+              </Link>
+            </Show>
           </nav>
         </div>
 

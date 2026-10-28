@@ -17,11 +17,8 @@ import type { PropertyInput } from "@/validations/property";
 
 export const FEATURED_PROPERTY_LIMIT = 6;
 
-/**
- * Owner of the seeded listings. Temporary until Clerk sessions exist (feature 10):
- * the dashboard and edit page read this owner's rows instead of the signed-in user's.
- */
-export const TEMPORARY_OWNER_ID = "seed_agent_a";
+/** `null` as an owner scope means every owner's rows (admins only). */
+export type OwnerScope = string | null;
 
 export type ServiceViewer = { id: string; role: "viewer" | "agent" | "admin" } | null;
 
@@ -158,11 +155,11 @@ export async function getById(id: string, viewer: ServiceViewer): Promise<Proper
   return { property: toProperty(row), images: images.get(row.id) ?? [] };
 }
 
-export async function listByOwner(ownerId: string): Promise<PropertyListItem[]> {
+export async function listByOwner(ownerId: OwnerScope): Promise<PropertyListItem[]> {
   const rows = await getDb()
     .select()
     .from(properties)
-    .where(eq(properties.ownerId, ownerId))
+    .where(ownerId === null ? undefined : eq(properties.ownerId, ownerId))
     .orderBy(desc(properties.updatedAt), asc(properties.id));
 
   return toListItems(rows);
@@ -178,17 +175,21 @@ export async function getFeaturedProperties(
 /** Owner-scoped lookup for the edit page: any status, but only the given owner's rows. */
 export async function getOwnedProperty(
   id: string,
-  ownerId: string,
+  ownerId: OwnerScope,
 ): Promise<PropertyDetail | null> {
   const [row] = await getDb()
     .select()
     .from(properties)
-    .where(and(eq(properties.id, id), eq(properties.ownerId, ownerId)))
+    .where(and(eq(properties.id, id), ownerFilter(ownerId)))
     .limit(1);
   if (!row) return null;
 
   const images = await loadImages([row.id]);
   return { property: toProperty(row), images: images.get(row.id) ?? [] };
+}
+
+function ownerFilter(ownerId: OwnerScope): SQL | undefined {
+  return ownerId === null ? undefined : eq(properties.ownerId, ownerId);
 }
 
 function toRowValues(input: PropertyInput) {
@@ -217,20 +218,20 @@ export async function create(input: PropertyInput, ownerId: string): Promise<str
 }
 
 /** Updates a listing only when the owner matches. Returns false when no owned row was found. */
-export async function update(id: string, input: PropertyInput, ownerId: string): Promise<boolean> {
+export async function update(id: string, input: PropertyInput, ownerId: OwnerScope): Promise<boolean> {
   const updated = await getDb()
     .update(properties)
     .set({ ...toRowValues(input), updatedAt: Date.now() })
-    .where(and(eq(properties.id, id), eq(properties.ownerId, ownerId)))
+    .where(and(eq(properties.id, id), ownerFilter(ownerId)))
     .returning({ id: properties.id });
   return updated.length > 0;
 }
 
 /** Deletes a listing only when the owner matches. Media rows cascade. */
-export async function remove(id: string, ownerId: string): Promise<boolean> {
+export async function remove(id: string, ownerId: OwnerScope): Promise<boolean> {
   const deleted = await getDb()
     .delete(properties)
-    .where(and(eq(properties.id, id), eq(properties.ownerId, ownerId)))
+    .where(and(eq(properties.id, id), ownerFilter(ownerId)))
     .returning({ id: properties.id });
   return deleted.length > 0;
 }

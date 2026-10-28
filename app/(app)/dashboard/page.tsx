@@ -3,10 +3,14 @@ import { Building2, Plus } from "lucide-react";
 import { DashboardTable } from "@/components/dashboard/DashboardTable";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { listByOwner, TEMPORARY_OWNER_ID } from "@/services/properties";
+import { requirePageUser } from "@/lib/auth/current-user";
+import { ownerScope } from "@/lib/auth/guards";
+import { listByOwner } from "@/services/properties";
 
 export default async function DashboardPage() {
-  const items = await listByOwner(TEMPORARY_OWNER_ID);
+  const user = await requirePageUser();
+
+  const items = await listByOwner(ownerScope(user));
 
   return (
     <div className="flex flex-col gap-6">
