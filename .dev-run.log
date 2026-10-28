@@ -1,0 +1,20 @@
+$ cf dev
+│  Delegating to pnpm vite
+
+  [32m[1mVITE[22m v8.3.0[39m  [2mready in [0m[1m7838[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
+  [32m➜[39m  [1mDebug[22m:   [2m[33mhttp://localhost:[1m5173[22m[2m/__debug[39m[22m
+Attention: Clerk collects telemetry data from its SDKs when connected to development instances.
+The data collected is used to inform Clerk's product roadmap.
+To learn more, including how to opt-out from the telemetry program, visit: https://clerk.com/docs/telemetry.
+
+eval() is not supported in this environment. React requires eval() in development mode for various debugging features like reconstructing callstacks from a different environment.
+React will never use eval() in production mode
+[2m7:12:05 AM[22m [33m[1m[vite][22m[39m [33m[2m(rsc)[22m[39m [33mwarning: client component dependency is inconsistently optimized. It's recommended to add the dependency to 'optimizeDeps.exclude'.[39m
+  Plugin: [35mrsc:use-client[39m
+  File: [36mC:/Users/jpilk/Documents/Projects/RealTrack/node_modules/.pnpm/lucide-react@1.61.0_@types+react@19.3.0_react@19.3.1/node_modules/lucide-react/dist/esm/Icon.mjs?v=394f8d8f[39m
+[2m7:14:22 AM[22m [36m[1m[vite][22m[39m [34m[2m(rsc)[22m[39m [32mhmr update [39m[2m/app/globals.css[22m
+[2m7:14:22 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/app/globals.css?direct[22m
+[2m7:14:43 AM[22m [36m[1m[vite][22m[39m [34m[2m(rsc)[22m[39m [32mhmr update [39m[2m/app/globals.css[22m
+[2m7:14:43 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/app/globals.css?direct[22m

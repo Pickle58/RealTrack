@@ -1,7 +1,13 @@
+import { redirect } from "next/navigation";
 import { PropertyForm } from "@/components/properties/PropertyForm";
+import { requirePageUser } from "@/lib/auth/current-user";
+import { canWriteListings } from "@/lib/auth/guards";
 import { emptyPropertyFormValues } from "@/validations/property";
 
-export default function NewPropertyPage() {
+export default async function NewPropertyPage() {
+  const user = await requirePageUser();
+  if (!canWriteListings(user.role)) redirect("/dashboard");
+
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">

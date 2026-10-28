@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { MediaUploader } from "@/components/properties/MediaUploader";
 import { PropertyForm } from "@/components/properties/PropertyForm";
 import { Button } from "@/components/ui/button";
-import { getOwnedProperty, TEMPORARY_OWNER_ID } from "@/services/properties";
+import { requirePageUser } from "@/lib/auth/current-user";
+import { canWriteListings, ownerScope } from "@/lib/auth/guards";
+import { getOwnedProperty } from "@/services/properties";
 import { propertyToFormValues } from "@/validations/property";
 
 export default async function EditPropertyPage({
@@ -12,8 +14,11 @@ export default async function EditPropertyPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const user = await requirePageUser();
+  if (!canWriteListings(user.role)) redirect("/dashboard");
+
   const { id } = await params;
-  const detail = await getOwnedProperty(id, TEMPORARY_OWNER_ID);
+  const detail = await getOwnedProperty(id, ownerScope(user));
 
   if (!detail) notFound();
 

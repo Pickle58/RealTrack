@@ -56,7 +56,7 @@
 | Clerk has no automatic keyless mode here; without keys every request 500s (`Clerk keys are missing`) | Medium | **Resolved** (2026-10-27) — `RealTrack` app linked and its dev keys pulled |
 | `.dev.vars` alone is invisible to Clerk; `CLERK_SECRET_KEY` must be declared as `bindings.secret()` | Medium | **Resolved** (2026-10-27) — binding declared; first deploy needs `--secrets-file .dev.vars` |
 | `clerk env pull` writes `VITE_CLERK_PUBLISHABLE_KEY` (it detects Vite, not Next) | Low | Renamed by hand to `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`; re-check after every pull |
-| `createRouteMatcher` is deprecated in `@clerk/nextjs` 7 and removed in the next major | Low | Open — feature 11 must protect with bare `clerkMiddleware()` plus `await auth.protect()` per page/action |
+| `createRouteMatcher` is deprecated in `@clerk/nextjs` 7 and removed in the next major | Low | **Resolved** (2026-10-28) — `proxy.ts` keeps a bare `clerkMiddleware()`; pages protect themselves with `requirePageUser()` → `auth.protect()`, so the matcher API is never used |
 | Vite prints "client component dependency is inconsistently optimized" for Clerk's client entry | Low | Accepted — dev-only warning; add `optimizeDeps.exclude` if it becomes noisy |
 | `/api/health` is public and unauthenticated | Low | Open — remove or restrict it before Phase 7 ends, per feature 02 |
 | Generated shadcn primitives ship `dark:` utilities; the OS dark preference activated them and washed the page out | Medium | **Fixed** (2026-10-27) — `@custom-variant dark (&:is(.dark *))` in `globals.css`; the app is light-only |
@@ -220,3 +220,10 @@ These resolve the spec's open questions and unstated gaps. Edit any you disagree
 - **Cascade verified:** deleting the 3-media "4821 N Hermitage Ave" row through `cf d1 raw` took `property_media` from 20 to 17 and the property count to 14; the seed was then re-applied (back to 15/20). A direct second `is_cover = 1` insert for one property was rejected with `UNIQUE constraint failed: property_media.property_id`.
 - Scripts: `db:migrate:local` / `db:migrate:remote` now pass `--dir migrations` (cf requires `--dir` whenever `--pattern` is used, and Drizzle's flat layout never matched the old pattern), and let the default `<dir>/*.sql` glob find the file.
 - `pnpm lint`, `pnpm typecheck` and `pnpm build` pass; the built route table is unchanged (no new routes).
+
+**2026-10-28 (session 10) — feature 11 signed-out verification**
+- Stopped the stale `pnpm vite` dev-server tree that was holding :5173 (it served 404s for `/dashboard` and `/properties/new`), then restarted with `pnpm dev`. vinext allows one dev server per checkout, so the old process had to go first. New listener: `[::1]:5173`.
+- **Clerk dev-browser handshake:** every document request 307s to `clerk.accounts.dev/v1/client/handshake` on a cold cookie jar, including public `/`. That is Clerk's dev handshake, not route protection — it must be followed with a cookie jar, or non-document requests used, before reading a redirect chain.
+- **Signed-out results** (curl, cookie jar, `Accept: text/html`): `/dashboard`, `/properties/new` and `/properties/<id>/edit` end at `/sign-in?redirect_url=<the requested page>` — so the return path is preserved. Public `/`, `/properties`, `/properties/<id>`, `/sign-in` and `/sign-up` all render 200.
+- **Off-site `redirect_url`:** `/dashboard?redirect_url=https://evil.example` yields `redirect_url=http://localhost:5173/dashboard?redirect_url=…evil.example`, i.e. the target is always the request's own origin plus path; user input is never forwarded into `redirect()` (both `redirect()` calls in `app/` are the literal `"/dashboard"`).
+- Still open for feature 11: Agent A vs Agent B edit/delete and `viewer` create/edit denial need signed-in accounts; the post-sign-in return trip was not exercised end to end.

@@ -8,7 +8,7 @@ function clerkRequireToImport(): Plugin {
   return {
     name: "clerk-require-to-import",
     apply: "serve",
-    applyToEnvironment: (environment) => environment.config.consumer === "server",
+    applyToEnvironment: () => true,
     transform(code, id) {
       if (!id.includes("/@clerk/nextjs/dist/esm/")) return;
       const specifiers: string[] = [];
@@ -30,6 +30,9 @@ function clerkRequireToImport(): Plugin {
 }
 
 export default defineConfig({
+  optimizeDeps: {
+    exclude: ["@clerk/nextjs"],
+  },
   plugins: [
     vinext(),
     clerkRequireToImport(),
