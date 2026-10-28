@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600" role="img" aria-label="Property photo placeholder">
+  <rect width="800" height="600" fill="#eef1f5" />
+  <circle cx="170" cy="140" r="44" fill="#ffffff" />
+  <g fill="#ffffff" stroke="#0f766e" stroke-width="7" stroke-linejoin="round">
+    <path d="M210 460 L210 300 L400 190 L590 300 L590 460 Z" />
+  </g>
+  <g fill="#e3e7ed">
+    <rect x="255" y="330" width="60" height="60" />
+    <rect x="370" y="330" width="60" height="60" />
+    <rect x="485" y="330" width="60" height="60" />
+    <rect x="370" y="415" width="60" height="45" fill="#0f766e" />
+  </g>
+  <rect x="210" y="460" width="380" height="14" fill="#e3e7ed" />
+  <path d="M80 530 L720 530" fill="none" stroke="#e3e7ed" stroke-width="6" stroke-linecap="round" />
+</svg>

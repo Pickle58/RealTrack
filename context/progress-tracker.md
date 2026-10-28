@@ -3,8 +3,8 @@
 # Progress Tracker
 
 **Last updated:** 2026-10-27
-**Current phase:** Phase 1 — Full UI with Mock Data (Phase 0 complete)
-**Overall status:** Features 01–03 complete. The `cf` + vinext + Clerk stack is proven, the Worker is live at https://real-estate-tracker.pilkington.workers.dev, and the design system plus the app shell are in place. Feature 04 (public browsing UI) is next.
+**Current phase:** Phase 1 — Full UI with Mock Data (features 01–04 complete; feature 05 next)
+**Overall status:** Features 01–04 complete. The `cf` + vinext + Clerk stack is proven, the Worker is live at https://real-estate-tracker.pilkington.workers.dev, and the design system, app shell and public browsing UI (landing, search with URL filters, pagination, property detail) all run on typed mock data. Feature 05 (agent form and dashboard) is next.
 
 ---
 
@@ -13,12 +13,12 @@
 - [x] 01 Project scaffold (2026-10-27) — `pnpm lint`, `pnpm typecheck` and `pnpm build` pass
 - [x] 02 Cloudflare CLI, bindings, and stack spike (2026-10-27) — `DB`/`KV`/`MEDIA` declared and provisioned, `/api/health` green locally and on the deployed Worker, Clerk spike passes with the dev-only require shim
 - [x] 03 Design tokens and app shell (2026-10-27) — `@theme` tokens + shadcn variable mapping in `globals.css`, Inter loaded, Navbar/PageShell/Footer rendering everywhere, 13 primitives installed and mapped to the tokens, scratch page at `/style-guide`
+- [x] 04 Public browsing UI (2026-10-27) — landing hero + featured grid, `/properties` with URL-driven filters, sort and pagination, `/properties/[id]` with gallery, facts, coordinates and map link, plus empty, loading and not-found states; typed mock data in `lib/mock-data.ts` behind `services/properties.ts`
 
 ## In Progress
 - [ ] _(none)_
 
 ## Up Next
-- [ ] 04 Public browsing UI
 - [ ] 05 Agent UI: form and dashboard
 - [ ] 06 Auth page shells and navbar states
 - [ ] 07 Schema, migrations, seed
@@ -69,6 +69,8 @@
 | pnpm ≥ 11 fails installs with `ERR_PNPM_IGNORED_BUILDS` for `workerd` / `esbuild` | Medium | Fixed in feature 01 — `allowBuilds` map in `pnpm-workspace.yaml` |
 | `architecture.md` cites OpenNext #1407 as evidence that `cf` breaks OpenNext; the issue actually reports a `bunx` resolution failure, and the reporter says the local binary works with `cloudflare.config.ts` present | Low | Open — the no-Wrangler rule is still correct, the citation is wrong (checked 2026-10-27) |
 | `pnpm build` prints rolldown warnings from vinext internals (`INEFFECTIVE_DYNAMIC_IMPORT`, `SOURCEMAP_BROKEN`) | Low | Accepted — the build still exits 0 |
+| `notFound()` renders the not-found UI but the response is still HTTP 200 (dev server and the `vite preview` build) | Low | Open — the page shows the not-found copy and never leaks drafts; features 08/16 decide whether a real 404 status is needed |
+| Public views are `active`-only per the architecture invariant, so `StatusBadge` on `/`, `/properties` and the detail page always reads Active | Low | Accepted — the other three statuses appear on the feature 05 dashboard |
 
 ---
 
@@ -109,6 +111,11 @@ These resolve the spec's open questions and unstated gaps. Edit any you disagree
 - **2026-10-27** — **shadcn is configured by hand.** `components.json` is committed; `shadcn init` is not run (it hangs non-interactively and misdetects Vite), and every added component gets the token pass described in `library-docs.md`.
 - **2026-10-27** — **The scratch style guide lives at `/style-guide`** and is deleted in feature 04, together with the placeholder `app/(public)/page.tsx`.
 - **2026-10-27** — **`lib/utils.ts` owns `cn`** (clsx + tailwind-merge). The `cn` npm package the CLI wanted is not used.
+- **2026-10-27** — **Phase 1 mock data is reached only through `services/properties.ts`** (`searchActiveProperties`, `getActivePropertyById`, `getFeaturedProperties`) reading `lib/mock-data.ts`. Pages call the service, components import types from `types/property.ts`, and feature 08 swaps the service body for D1 without touching a page.
+- **2026-10-27** — **The property service filters to `status = 'active'`** (there is no auth yet), so public browsing cannot show drafts, sold or off-market listings before feature 11 exists.
+- **2026-10-27** — **Mock images are static SVG placeholders** in `public/placeholders/` and the mock stores that path as the image `src`; feature 13/14 change only the service to emit `/media/{id}`.
+- **2026-10-27** — **Search filters, sort and page live in the URL** and are parsed by `validations/property-search.ts`. Every field `.catch`-es to a default, so a junk query string falls back instead of erroring, and `pageSize` defaults to 6 (`DEFAULT_PAGE_SIZE`): the 15 mock active listings paginate into 3 pages.
+- **2026-10-27** — **The `/style-guide` scratch page and the placeholder `app/(public)/page.tsx` were deleted** in feature 04, as the tracker planned.
 
 ---
 
@@ -153,3 +160,16 @@ These resolve the spec's open questions and unstated gaps. Edit any you disagree
 - `Navbar` (logged-out), `PageShell` and `Footer` render on every page through `app/layout.tsx`; the scratch page at `/style-guide` shows buttons, inputs, badges, status colours, card/table/skeleton and all five overlays.
 - Browser checks: primary button `#0f766e` on white text, secondary `bg-surface` with the border token, the four status badges on their light tokens, dialog on `bg-surface` with the new `bg-overlay` scrim, skeleton on `surface-secondary`, a toast rendering ("Saved"), and no horizontal overflow at 390px.
 - Known gap: overlays cannot be asserted closed in a hidden tab (frozen animation timeline). Test rules are in `library-docs.md`.
+
+**2026-10-27 (session 4) — coderabbit fix**
+- Triage: the Coderabbit finding on `components/ui/sonner.tsx` (`--normal-border` pointing at the undefined `--border`) was **verified as valid** — the border token is defined as `--color-border` in `app/globals.css` `@theme`, with shadcn semantic names mapped onto it (`--input: var(--color-border)`); no bare `--border` exists. Sonner consumes `--normal-border` via `border: 1px solid var(--normal-border)` on `[data-sonner-toast][data-styled='true']`.
+- Applied the minimal fix: `"--normal-border": "var(--color-border)"`. No other undefined tokens found in the Toaster style block.
+- `pnpm lint`, `pnpm typecheck` and `pnpm build` all pass after the fix.
+
+**2026-10-27 (session 5) — feature 04**
+- Data layer: `types/property.ts`, `lib/format.ts` (`formatPrice`, integer cents, no decimals), `lib/mock-data.ts` (18 fixtures: 15 active, 1 draft, 1 sold, 1 off-market; 3 cycled SVG placeholders, two active listings without coordinates and one without photos), `validations/property-search.ts` and `services/properties.ts`.
+- Components: `StatusBadge`, `PropertyCard`, `PropertyGrid`, `PropertyImagePlaceholder`, `PropertyFacts`, `PropertyGallery`, `SearchFilters`, `EmptyState`, `Pagination`; pages: real `/`, `/properties` + `loading.tsx`, `/properties/[id]` + `not-found.tsx`. `/style-guide` and the placeholder landing page are gone.
+- Browser checks (dev server, 1280px and 390px): 15 active listings in 3 pages, newest-first; page links carry the filters forward; the mobile sheet filters and applies (`?minBedrooms=4` → 6 results, Filters (1)); sort select (`?minBedrooms=4&sort=price_asc` → $518,000 → $2,450,000); hero search → `/properties?q=austin`; `?q=portland` (a draft only) renders the empty state with no draft leak; the detail page shows price, Active badge, facts, `41.96910, -87.67210` and a Google Maps link; the no-photo/no-coordinate fixture shows the placeholder and Location not verified; a draft id renders `not-found.tsx` inside the shell; the gallery lightbox opens at 896px and closes; no horizontal overflow at 390px.
+- `loading.tsx` verified by temporarily delaying `searchActiveProperties`: the response streams the skeleton markup first (byte ~6 KB) and the cards later (~84 KB). The delay was removed before the final build.
+- Behaviour recorded in Known Issues: `notFound()` renders correctly but the status is HTTP 200 on both the dev server and the production preview build.
+- `pnpm lint`, `pnpm typecheck` and `pnpm build` pass; the built route table lists `/`, `/api/health`, `/properties` and `/properties/:id`.

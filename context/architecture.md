@@ -67,10 +67,14 @@
 │   ├── r2.ts                       # R2 helpers
 │   ├── auth/                       # guards over Clerk auth(): getOptionalUser, requireUser, role helpers
 │   ├── geocoder/                   # Geocoder interface + provider(s)
+│   ├── format.ts                   # UI-edge formatters (formatPrice)
+│   ├── mock-data.ts                # Phase 1 fixtures; deleted in Phase 2
 │   ├── events.ts                   # property.* emitters → invalidation
 │   └── utils.ts
 ├── validations/                    # Zod schemas
 ├── types/                          # shared TS types (+ globals.d.ts for Clerk session claims)
+├── public/
+│   └── placeholders/               # Phase 1 placeholder listing images (SVG)
 ├── migrations/                     # drizzle-generated SQL
 ├── proxy.ts                        # clerkMiddleware: route protection (Next.js 16; was middleware.ts)
 ├── cloudflare.config.ts            # Worker config + D1 / KV / R2 / secret bindings (cf)
