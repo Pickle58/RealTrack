@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { startTransition } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { deleteProperty } from "@/actions/properties";
 import { StatusBadge } from "@/components/properties/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -74,11 +76,16 @@ export function DashboardTable({ items }: { items: PropertyListItem[] }) {
                   <ConfirmDialog
                     confirmLabel="Delete property"
                     description={`This removes ${property.addressLine1}, ${property.city} and its photos. It can't be undone.`}
-                    onConfirm={() =>
-                      toast.success("Deleting is not connected yet.", {
-                        description: `${property.addressLine1} was kept.`,
-                      })
-                    }
+                    onConfirm={() => {
+                      startTransition(async () => {
+                        const result = await deleteProperty(property.id);
+                        if (result.success) {
+                          toast.success("Property deleted.");
+                        } else {
+                          toast.error(result.error);
+                        }
+                      });
+                    }}
                     title={`Delete “${property.addressLine1}”?`}
                     trigger={
                       <Button

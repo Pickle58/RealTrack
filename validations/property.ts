@@ -52,7 +52,8 @@ export const propertyInputSchema = z.object({
     .string()
     .trim()
     .toUpperCase()
-    .length(2, "Use a two-letter country code."),
+    .length(2, "Use a two-letter country code.")
+    .regex(/^[A-Z]{2}$/, "Use a two-letter country code."),
   bedrooms: wholeAmount("Bedrooms", 0, MAX_COUNT),
   bathrooms: halfStepAmount("Bathrooms", 0, MAX_COUNT),
   price: wholeAmount("Price", 0, MAX_PRICE_DOLLARS),

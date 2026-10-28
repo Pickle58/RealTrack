@@ -5,7 +5,7 @@ import { SearchFilters } from "@/components/properties/SearchFilters";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Pagination } from "@/components/ui/Pagination";
-import { searchActiveProperties } from "@/services/properties";
+import { search as searchProperties } from "@/services/properties";
 import { parsePropertySearch, propertySearchToParams } from "@/validations/property-search";
 
 export default async function PropertiesPage({
@@ -15,7 +15,7 @@ export default async function PropertiesPage({
 }) {
   const rawSearchParams = await searchParams;
   const search = parsePropertySearch(rawSearchParams);
-  const result = await searchActiveProperties(search);
+  const result = await searchProperties(search, null);
 
   const pageQuery = Object.fromEntries(propertySearchToParams({ ...search, page: 1 }));
   const filterKey = new URLSearchParams(pageQuery).toString();

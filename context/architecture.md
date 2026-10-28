@@ -76,6 +76,7 @@
 ├── public/
 │   └── placeholders/               # Phase 1 placeholder listing images (SVG)
 ├── migrations/                     # drizzle-generated SQL
+├── scripts/                        # seed.sql (local dev data, applied with cf d1 raw)
 ├── proxy.ts                        # clerkMiddleware: route protection (Next.js 16; was middleware.ts)
 ├── cloudflare.config.ts            # Worker config + D1 / KV / R2 / secret bindings (cf)
 ├── vite.config.ts                  # vinext() + Cloudflare Vite plugin

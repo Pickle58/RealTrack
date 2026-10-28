@@ -7,7 +7,7 @@ import { StatusBadge } from "@/components/properties/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatPrice } from "@/lib/format";
-import { getActivePropertyById } from "@/services/properties";
+import { getById } from "@/services/properties";
 
 export default async function PropertyDetailPage({
   params,
@@ -15,7 +15,7 @@ export default async function PropertyDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const detail = await getActivePropertyById(id);
+  const detail = await getById(id, null);
 
   if (!detail) notFound();
 

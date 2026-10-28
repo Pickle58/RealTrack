@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { MediaUploader } from "@/components/properties/MediaUploader";
 import { PropertyForm } from "@/components/properties/PropertyForm";
 import { Button } from "@/components/ui/button";
-import { getPropertyForEdit } from "@/services/properties";
+import { getOwnedProperty, TEMPORARY_OWNER_ID } from "@/services/properties";
 import { propertyToFormValues } from "@/validations/property";
 
 export default async function EditPropertyPage({
@@ -13,7 +13,7 @@ export default async function EditPropertyPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const detail = await getPropertyForEdit(id);
+  const detail = await getOwnedProperty(id, TEMPORARY_OWNER_ID);
 
   if (!detail) notFound();
 
@@ -37,7 +37,7 @@ export default async function EditPropertyPage({
         </header>
       </div>
 
-      <PropertyForm initial={propertyToFormValues(property)} mode="edit" />
+      <PropertyForm initial={propertyToFormValues(property)} mode="edit" propertyId={property.id} />
       <MediaUploader />
     </div>
   );
