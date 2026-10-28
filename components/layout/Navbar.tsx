@@ -2,13 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { NavbarAuth } from "@/components/layout/NavbarAuth";
+import { getMockAuthState } from "@/lib/mock-auth";
 import { cn } from "@/lib/utils";
-
-const links = [{ href: "/properties", label: "Browse" }];
 
 export function Navbar() {
   const pathname = usePathname();
+  const isSignedIn = getMockAuthState() !== "signed_out";
+
+  const links = [
+    { href: "/properties", label: "Browse" },
+    ...(isSignedIn ? [{ href: "/dashboard", label: "Dashboard" }] : []),
+  ];
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-surface">
@@ -37,14 +42,7 @@ export function Navbar() {
           </nav>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
-          <Button asChild size="sm" variant="secondary">
-            <Link href="/sign-in">Sign in</Link>
-          </Button>
-          <Button asChild size="sm">
-            <Link href="/sign-up">Sign up</Link>
-          </Button>
-        </div>
+        <NavbarAuth />
       </div>
     </header>
   );

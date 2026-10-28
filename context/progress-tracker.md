@@ -3,8 +3,8 @@
 # Progress Tracker
 
 **Last updated:** 2026-10-27
-**Current phase:** Phase 1 — Full UI with Mock Data (features 01–04 complete; feature 05 next)
-**Overall status:** Features 01–04 complete. The `cf` + vinext + Clerk stack is proven, the Worker is live at https://real-estate-tracker.pilkington.workers.dev, and the design system, app shell and public browsing UI (landing, search with URL filters, pagination, property detail) all run on typed mock data. Feature 05 (agent form and dashboard) is next.
+**Current phase:** Phase 1 — Full UI with Mock Data (features 01–06 complete; feature 07 next)
+**Overall status:** Features 01–06 complete. The `cf` + vinext + Clerk stack is proven, the Worker is live at https://real-estate-tracker.pilkington.workers.dev, and the design system, app shell, public browsing UI, agent property form, dashboard and auth page shells all run on typed mock data. Phase 2 starts with feature 07 (schema, migrations, seed).
 
 ---
 
@@ -14,13 +14,13 @@
 - [x] 02 Cloudflare CLI, bindings, and stack spike (2026-10-27) — `DB`/`KV`/`MEDIA` declared and provisioned, `/api/health` green locally and on the deployed Worker, Clerk spike passes with the dev-only require shim
 - [x] 03 Design tokens and app shell (2026-10-27) — `@theme` tokens + shadcn variable mapping in `globals.css`, Inter loaded, Navbar/PageShell/Footer rendering everywhere, 13 primitives installed and mapped to the tokens, scratch page at `/style-guide`
 - [x] 04 Public browsing UI (2026-10-27) — landing hero + featured grid, `/properties` with URL-driven filters, sort and pagination, `/properties/[id]` with gallery, facts, coordinates and map link, plus empty, loading and not-found states; typed mock data in `lib/mock-data.ts` behind `services/properties.ts`
+- [x] 05 Agent UI: form and dashboard (2026-10-27) — `PropertyForm` with Address/Details/Status sections on `react-hook-form` + Zod, `/properties/new`, `/properties/[id]/edit` with mock prefill, non-functional `MediaUploader`, and `/dashboard` with `DashboardTable`, `StatusBadge`, `ConfirmDialog` delete and empty state
+- [x] 06 Auth page shells and navbar states (2026-10-27) — `AuthPageLayout` behind `/sign-in` and `/sign-up` placeholder pages, `NavbarAuth` with the four mock states from `lib/mock-auth.ts` (signed out / viewer / agent / admin), Dashboard link and role-gated Add property in the navbar
 
 ## In Progress
 - [ ] _(none)_
 
 ## Up Next
-- [ ] 05 Agent UI: form and dashboard
-- [ ] 06 Auth page shells and navbar states
 - [ ] 07 Schema, migrations, seed
 - [ ] 08 Read path
 - [ ] 09 Write path (temporary identity)
@@ -71,6 +71,9 @@
 | `pnpm build` prints rolldown warnings from vinext internals (`INEFFECTIVE_DYNAMIC_IMPORT`, `SOURCEMAP_BROKEN`) | Low | Accepted — the build still exits 0 |
 | `notFound()` renders the not-found UI but the response is still HTTP 200 (dev server and the `vite preview` build) | Low | Open — the page shows the not-found copy and never leaks drafts; features 08/16 decide whether a real 404 status is needed |
 | Public views are `active`-only per the architecture invariant, so `StatusBadge` on `/`, `/properties` and the detail page always reads Active | Low | Accepted — the other three statuses appear on the feature 05 dashboard |
+| Installing dependencies while `cf dev` runs leaves the dev server broken (`createContext is not a function` after Vite re-optimizes) | Low | Workaround — stop and restart `cf dev`; hit during feature 05, restart fixed it |
+| Vinext re-optimizing client dependencies logs "client component dependency is inconsistently optimized" for `@clerk/nextjs` and `lucide-react` | Low | Accepted — dev-only warning, the server still serves every route |
+| Vinext holds a per-project-root dev lock, so two sessions on this checkout cannot both run `vite dev` / `cf dev`; the second exits with "Another vinext dev server is already running" | Low | Accepted — check the existing listener first; the running server hot-reloads changes from this checkout |
 
 ---
 
@@ -116,6 +119,13 @@ These resolve the spec's open questions and unstated gaps. Edit any you disagree
 - **2026-10-27** — **Mock images are static SVG placeholders** in `public/placeholders/` and the mock stores that path as the image `src`; feature 13/14 change only the service to emit `/media/{id}`.
 - **2026-10-27** — **Search filters, sort and page live in the URL** and are parsed by `validations/property-search.ts`. Every field `.catch`-es to a default, so a junk query string falls back instead of erroring, and `pageSize` defaults to 6 (`DEFAULT_PAGE_SIZE`): the 15 mock active listings paginate into 3 pages.
 - **2026-10-27** — **The `/style-guide` scratch page and the placeholder `app/(public)/page.tsx` were deleted** in feature 04, as the tracker planned.
+- **2026-10-27** — **Phase 1 dashboard shows every mock property, all statuses,** through `listDashboardProperties()`. There is no auth yet, so it is not owner-scoped; feature 08 replaces the service body with a temporary seed owner ID and real owner filtering.
+- **2026-10-27** — **The property form validates with `react-hook-form` + `zodResolver` over `validations/property.ts`.** Numeric fields validate as strings and `.transform(Number)` on success, so `z.input` stays string-typed for form fields while `z.output` gives the numeric `PropertyInput`; the same schema will parse `FormData` strings in feature 09. `@hookform/resolvers` 6.0.0 was added alongside `react-hook-form` 7.91.0 (both already on the approved list).
+- **2026-10-27** — **Form submit and dashboard delete are no-ops with a toast** until features 09. Delete goes through `ConfirmDialog`, which names the property.
+- **2026-10-27** — **`getPropertyForEdit(id)` returns any status and `notFound()` otherwise** (verified HTTP 404), so drafts, sold and off-market listings can be edited before route protection exists.
+- **2026-10-27** — **`PropertyFormValues` (strings) and `PropertyInput` (numbers, price in dollars)** are the form/action boundary; dollars are converted to cents only in the Phase 2 service.
+- **2026-10-27** — **The four navbar auth states are a dev-only source flag.** `lib/mock-auth.ts` holds `MOCK_AUTH_STATE` (edit it to `viewer`, `agent` or `admin`), the mock users and `canManageProperties`; `getMockAuthState()` returns `signed_out` whenever `NODE_ENV` is `production`, so a build can never show a mock session. Feature 10 replaces every caller with Clerk and deletes the file. A source constant was chosen over an env var because the dev server lock makes an env-var flip require a restart another session may own.
+- **2026-10-27** — **The auth pages label a placeholder, not a form.** `/sign-in` and `/sign-up` render `AuthPageLayout` with heading, copy, a dashed placeholder card naming where Clerk's component goes, and a cross-link; feature 10 swaps only the card body.
 
 ---
 
@@ -173,3 +183,17 @@ These resolve the spec's open questions and unstated gaps. Edit any you disagree
 - `loading.tsx` verified by temporarily delaying `searchActiveProperties`: the response streams the skeleton markup first (byte ~6 KB) and the cards later (~84 KB). The delay was removed before the final build.
 - Behaviour recorded in Known Issues: `notFound()` renders correctly but the status is HTTP 200 on both the dev server and the production preview build.
 - `pnpm lint`, `pnpm typecheck` and `pnpm build` pass; the built route table lists `/`, `/api/health`, `/properties` and `/properties/:id`.
+
+**2026-10-27 (session 6) — feature 05**
+- Schema: `validations/property.ts` (`propertyInputSchema`, `PropertyFormValues` strings / `PropertyInput` numbers, `emptyPropertyFormValues`, `propertyToFormValues`). Service reads added: `listDashboardProperties()` and `getPropertyForEdit(id)`; `formatDate()` added to `lib/format.ts`.
+- UI: `FormField`, `PropertyForm`, `MediaUploader`, `ConfirmDialog`, `DashboardTable`; pages `/properties/new`, `/properties/[id]/edit`, `/dashboard`. The three obsolete `.gitkeep` files were deleted.
+- Browser checks (390px and desktop): empty submit shows inline errors plus `aria-invalid` on address line 1, city, state, postal code, bedrooms, bathrooms and price; `bathrooms=2.4` is rejected with "Use half-bath increments (0.5).", `2.5` submits and shows the no-op toast; price and bedroom inputs are `step=1`, bathrooms `step=0.5`; editing the draft fixture prefills every field including status Draft; unknown edit id returns HTTP 404 with the not-found UI; the dashboard lists 18 properties (15 active, 1 draft, 1 sold, 1 off market) sorted by last edit, and the delete dialog reads "Delete “2211 NE Alberta St”?" before its no-op toast; the empty state was verified with a temporary empty return that was reverted; no horizontal body overflow at 390px (the table scrolls inside its own container).
+- Installing `react-hook-form`/`@hookform/resolvers` while the old dev server was running left it in a broken re-optimized state; it was stopped (identified by port 5173 PID/tree) and restarted with `pnpm dev`, which fixed it. Recorded in Known Issues.
+- `pnpm lint`, `pnpm typecheck` and `pnpm build` pass; the built route table adds `/dashboard`, `/properties/:id/edit` and `/properties/new`.
+
+**2026-10-27 (session 7) — feature 06**
+- Mock state: `lib/mock-auth.ts` (types, `MOCK_AUTH_STATES`, three mock users, `parseMockAuthState`, `canManageProperties`, `getMockAuthState`). The dev flag is the single `MOCK_AUTH_STATE` constant; `NODE_ENV === "production"` always resolves to `signed_out`.
+- UI: `NavbarAuth` (client) and `AuthPageLayout` (server) added; `Navbar` now computes its links from the mock state and renders `NavbarAuth` on the right. Pages `/sign-in/[[...sign-in]]` and `/sign-up/[[...sign-up]]` replaced their `.gitkeep` files.
+- Browser checks (390px and desktop, against the dev server already running in this checkout): signed out shows Browse + Sign in/Sign up and no Dashboard; viewer adds the Dashboard link and the `VL` avatar with no Add property; agent and admin add **Add property** (`AR` / `AC`); the menu shows name, email, `Role: Viewer|Agent|Admin (mock)`, Dashboard and Sign out, and Sign out toasts "Sign-out is not connected yet."; Dashboard is accent-coloured when active; the Add property label is visually hidden below `sm` (36px icon button, accessible name intact); at 390px the header inner width equals the viewport minus the scrollbar (no overflow) and the menu opens fully inside the viewport (133–357px); both auth pages centre a 448px card on desktop and fill the viewport below the header at 390px, with the footer starting at the fold; the sign-up → sign-in cross-link navigates; no console errors or warnings.
+- The state was switched by editing `MOCK_AUTH_STATE` and reloading (HMR), then reverted to `signed_out` before the final build.
+- `pnpm lint`, `pnpm typecheck` and `pnpm build` pass; the built route table adds `/sign-in` and `/sign-up`.
