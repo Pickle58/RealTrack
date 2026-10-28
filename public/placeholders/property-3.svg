@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600" role="img" aria-label="Property photo placeholder">
+  <rect width="800" height="600" fill="#e9edf2" />
+  <g fill="#ffffff" stroke="#0f766e" stroke-width="7" stroke-linejoin="round">
+    <path d="M180 430 L180 320 L320 320 L320 430 Z" />
+    <path d="M320 430 L320 250 L520 250 L520 430 Z" />
+    <path d="M520 430 L520 290 L640 290 L640 430 Z" />
+  </g>
+  <g fill="#e3e7ed">
+    <rect x="225" y="355" width="50" height="50" />
+    <rect x="365" y="290" width="50" height="50" />
+    <rect x="445" y="290" width="50" height="50" />
+    <rect x="365" y="365" width="50" height="50" fill="#0f766e" />
+    <rect x="565" y="330" width="50" height="50" />
+  </g>
+  <rect x="180" y="430" width="460" height="14" fill="#dfe4ea" />
+  <path d="M70 520 L730 520" fill="none" stroke="#dfe4ea" stroke-width="6" stroke-linecap="round" />
+</svg>
