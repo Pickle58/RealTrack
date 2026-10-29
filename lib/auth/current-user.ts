@@ -1,21 +1,11 @@
 import { auth } from "@clerk/nextjs/server";
-
-export type Role = "viewer" | "agent" | "admin";
+import { parseRole, type Role } from "@/lib/auth/roles";
 
 export type CurrentUser = { id: string; role: Role };
-
 export class AuthError extends Error {
   constructor() {
     super("unauthenticated");
   }
-}
-
-const ROLES = ["viewer", "agent", "admin"] as const;
-
-// Role lives in the session token's public metadata (see context/code-standards.md).
-// A missing or unknown role resolves to "agent".
-export function parseRole(value: unknown): Role {
-  return ROLES.find((candidate) => candidate === value) ?? "agent";
 }
 
 export async function getOptionalUser(): Promise<CurrentUser | null> {

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { PropertyImagePlaceholder } from "@/components/properties/PropertyImagePlaceholder";
+import { PropertyPhoto } from "@/components/properties/PropertyPhoto";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { PropertyImage } from "@/types/property";
@@ -30,7 +31,12 @@ export function PropertyGallery({
         onClick={() => setLightboxOpen(true)}
         type="button"
       >
-        <img alt={active.altText} className="aspect-[4/3] w-full object-cover" src={active.src} />
+        <PropertyPhoto
+          alt={active.altText || `Photo of ${address}`}
+          className="aspect-[4/3] w-full object-cover"
+          placeholderClassName="aspect-[4/3] w-full"
+          src={active.src}
+        />
       </button>
 
       {images.length > 1 ? (
@@ -47,7 +53,12 @@ export function PropertyGallery({
               onClick={() => setActiveIndex(index)}
               type="button"
             >
-              <img alt={image.altText} className="h-full w-full object-cover" src={image.src} />
+              <PropertyPhoto
+                alt={image.altText || `Photo ${index + 1} of ${address}`}
+                className="h-full w-full object-cover"
+                placeholderClassName="h-full w-full"
+                src={image.src}
+              />
             </button>
           ))}
         </div>
@@ -56,9 +67,10 @@ export function PropertyGallery({
       <Dialog onOpenChange={setLightboxOpen} open={lightboxOpen}>
         <DialogContent aria-describedby={undefined} className="sm:max-w-4xl">
           <DialogTitle className="sr-only">Photo of {address}</DialogTitle>
-          <img
-            alt={active.altText}
+          <PropertyPhoto
+            alt={active.altText || `Photo of ${address}`}
             className="max-h-[70vh] w-full rounded-md object-contain"
+            placeholderClassName="min-h-[40vh] w-full rounded-md"
             src={active.src}
           />
         </DialogContent>

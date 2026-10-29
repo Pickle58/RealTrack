@@ -121,7 +121,7 @@ Owner or admin edits fields (re-geocodes if address changed) or deletes the prop
 - **Cache:** Cloudflare KV (list/detail cache, geocode cache, rate limits)
 - **Media:** Cloudflare R2 (binding access)
 - **Auth:** Clerk (`@clerk/nextjs`), set up with the Clerk CLI
-- **External:** Geocoding & Address API (vendor behind an interface; default Mapbox)
+- **External:** Geocoding & Address API (vendor behind an interface; geocod.io)
 - **Edge:** Cloudflare CDN + WAF; built and deployed with the Cloudflare CLI (`cf`)
 
 ---

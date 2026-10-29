@@ -45,7 +45,7 @@
 │   │   └── properties/
 │   │       ├── route.ts            # GET list
 │   │       └── [id]/route.ts       # GET one
-│   ├── media/[id]/route.ts         # streams R2 object (access-checked)
+│   ├── media/[id]/route.ts         # streams R2 object (access check in services/media)
 │   ├── layout.tsx                  # ClerkProvider, Inter font
 │   └── globals.css                 # Tailwind v4 @theme tokens
 ├── actions/                        # Server Actions (mutations only)
@@ -161,11 +161,12 @@ emit property.updated → revalidate
 ```
 <img src="/media/{mediaId}">
         ↓
-app/media/[id]/route.ts → look up row + parent property in D1
+app/media/[id]/route.ts → services/media.getForServing(id, resolveViewer)
         ↓
-Parent active? serve to anyone. Otherwise require owner/admin session.
+Parent active? serve to anyone (the viewer is never resolved).
+Otherwise resolve the session and serve owner/admin only.
         ↓
-R2.get(r2_key) → stream with Content-Type, Cache-Control
+R2.get(r2Key) → stream with Content-Type, Cache-Control
 ```
 
 ---
@@ -177,7 +178,7 @@ The spec lists `GET/POST/PATCH/DELETE /api/properties`. Decision: **reads** are 
 | Operation            | Mechanism                         | Auth                    |
 | -------------------- | --------------------------------- | ----------------------- |
 | List / search        | `GET /api/properties` + SSR page  | Public (active only)    |
-| Read one             | `GET /api/properties/:id` + SSR   | Public if active, else owner/admin |
+| Read one             | `GET /api/properties/:id` + SSR   | API: public if active. SSR: also owner/admin |
 | Create               | Server Action `createProperty`    | agent, admin            |
 | Update               | Server Action `updateProperty`    | owner, admin            |
 | Delete               | Server Action `deleteProperty`    | owner, admin            |
@@ -246,12 +247,12 @@ Bucket is **private**. No public bucket URL, no guessable keys leave the server.
 | Key pattern                               | Value             | TTL        |
 | ----------------------------------------- | ----------------- | ---------- |
 | `properties:list:{version}:{queryHash}`   | JSON page of results | 60 s    |
-| `properties:list:version`                 | integer counter   | none       |
+| `properties:list:version`                 | version string (bumped to `Date.now()`) | none |
 | `properties:{id}`                         | JSON property + media | 300 s  |
 | `geocode:{addressHash}`                   | JSON `{lat,lng,normalized}` | 30 days |
 | `ratelimit:{scope}:{userId}:{window}`     | integer counter   | = window   |
 
-List invalidation uses a version counter: events increment `properties:list:version`, which orphans all older list keys (they expire by TTL). This avoids prefix scans in KV.
+List invalidation uses a version counter: every `property.*` event bumps `properties:list:version` to a new timestamp string, which orphans all older list keys (they expire by TTL). This avoids prefix scans in KV. The emitters in `lib/events.ts` are called by the services, because they know the row owner and whether an address changed.
 
 ---
 
@@ -301,7 +302,7 @@ Rules the AI agent must never violate:
 
 - Components contain no data fetching, DB, KV, or R2 logic. `app/` pages call `services/` only.
 - Every Server Action starts with `requireUser()` (Clerk handles sign-in and sign-up) and an explicit ownership or role check. Never trust a `propertyId` from the client without checking `owner_id`.
-- Anonymous or non-owner queries must filter `status = 'active'`. Draft, sold, and off-market properties are visible only to owner/admin.
+- Anonymous and `viewer` queries must filter `status = 'active'`; agents also see their own rows, and admins see every row. Draft, sold, and off-market properties are never public.
 - All D1 access uses Drizzle's parameterized builders. Never concatenate SQL strings.
 - Every KV `put` for cache or geocode data sets a TTL. Only `properties:list:version` has none.
 - Every mutation that changes a property calls the matching event emitter from `lib/events.ts`. Never delete KV keys inline in actions.

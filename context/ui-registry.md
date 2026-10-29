@@ -91,11 +91,11 @@ Installed with the shadcn CLI (style `new-york`, base colour `neutral`, CSS vari
 ### PropertyCard
 
 - Path: `components/properties/PropertyCard.tsx`
-- Type: server
+- Type: client (`PropertyPhoto` owns the error state)
 - Props: `{ item: PropertyListItem }`
-- Classes: `Card className="gap-0 overflow-hidden p-0 transition-shadow hover:shadow-md"`; the whole card is a `Link` to `/properties/{id}`; cover `aspect-[4/3] w-full object-cover`, `object-cover` on a plain `<img>`; `StatusBadge` at `absolute top-3 left-3`; body `flex flex-1 flex-col gap-2 p-6`; price `text-xl font-bold text-accent`; address `text-sm font-medium text-text-primary`; city line `text-xs text-text-muted`; facts row `mt-auto flex items-center gap-4 pt-2 text-sm text-text-secondary` with `size-4` lucide icons
+- Classes: `Card className="gap-0 overflow-hidden p-0 transition-shadow hover:shadow-md"`; the whole card is a `Link` to `/properties/{id}`; cover `aspect-[4/3] w-full object-cover` through `PropertyPhoto` (`placeholderClassName="h-full w-full"`); `StatusBadge` at `absolute top-3 left-3`; body `flex flex-1 flex-col gap-2 p-6`; price `text-xl font-bold text-accent`; address `text-sm font-medium text-text-primary`; city line `text-xs text-text-muted`; facts row `mt-auto flex items-center gap-4 pt-2 text-sm text-text-secondary` with `size-4` lucide icons
 - Used in: `PropertyGrid` on `/` and `/properties`
-- Notes: no cover image renders `PropertyImagePlaceholder` instead of an `<img>`
+- Notes: the cover is the `is_cover` row, else the oldest photo (feature 14); no image renders `PropertyImagePlaceholder`, and a missing R2 object is swapped for the same placeholder by `PropertyPhoto`
 
 ### PropertyGrid
 
@@ -111,8 +111,8 @@ Installed with the shadcn CLI (style `new-york`, base colour `neutral`, CSS vari
 - Type: server
 - Props: `{ className?: string }`
 - Classes: `flex items-center justify-center bg-surface-secondary` with a `size-8 text-text-muted` `Home` icon and `sr-only` "No photo available"
-- Used in: `PropertyCard` (no cover), `PropertyGallery` (no images)
-- Notes: this is the neutral block the R2-outage case will use in feature 13/14; sizing comes from the caller
+- Used in: `PropertyCard` (no cover), `PropertyGallery` (no images), `PropertyPhoto` (failed image)
+- Notes: the neutral block behind every R2-outage / missing-object case (feature 14); sizing comes from the caller
 
 ### PropertyFacts
 
@@ -129,7 +129,25 @@ Installed with the shadcn CLI (style `new-york`, base colour `neutral`, CSS vari
 - Props: `{ images: PropertyImage[]; address: string }`
 - Classes: main image button `w-full overflow-hidden rounded-xl border border-border bg-surface-secondary` around an `aspect-[4/3] object-cover` image; thumbnail strip `flex gap-3 overflow-x-auto`, each thumb `h-16 w-20 shrink-0 rounded-md border`, current `border-accent`, others `border-border`; lightbox `DialogContent className="sm:max-w-4xl"` with `max-h-[70vh] object-contain` and an `sr-only` `DialogTitle`
 - Used in: `/properties/[id]`
-- Notes: the width override must be `sm:max-w-4xl` — the primitive's own `sm:max-w-lg` outranks an unprefixed `max-w-*` class. `DialogContent` needs `aria-describedby={undefined}` because the lightbox has no description.
+- Notes: receives photos only — PDFs go to `PropertyDocuments` (feature 14). Every image renders through `PropertyPhoto`, so a missing R2 object becomes the neutral placeholder in the main frame, the thumbnail strip and the lightbox. Alt text falls back to `Photo of {address}`. The width override must be `sm:max-w-4xl` — the primitive's own `sm:max-w-lg` outranks an unprefixed `max-w-*` class. `DialogContent` needs `aria-describedby={undefined}` because the lightbox has no description.
+
+### PropertyPhoto
+
+- Path: `components/properties/PropertyPhoto.tsx`
+- Type: client (image error state)
+- Props: `{ src: string; alt: string; className?: string; placeholderClassName?: string }`
+- Classes: none of its own — the caller passes the img classes and, when the layout differs, `placeholderClassName` for `PropertyImagePlaceholder`
+- Used in: `PropertyCard`, `PropertyGallery`
+- Notes: swaps to `PropertyImagePlaceholder` on `onError`, and also on mount when the image already finished with `naturalWidth === 0` (a failure that happens before hydration). This is the R2-outage / missing-object fallback.
+
+### PropertyDocuments
+
+- Path: `components/properties/PropertyDocuments.tsx`
+- Type: server
+- Props: `{ documents: PropertyDocument[]; address: string }`
+- Classes: `Card className="gap-4 p-6"`; heading `text-lg font-semibold text-text-primary`; list `flex flex-col gap-2`; row `flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3`; icon tile `flex size-10 shrink-0 items-center justify-center rounded-md bg-surface-secondary` with a `size-5 text-text-muted` `FileText`; name `truncate text-sm font-medium text-text-primary`; meta `text-xs text-text-muted`; download is a `size="sm" variant="secondary"` button link with a `Download` icon
+- Used in: `/properties/[id]`
+- Notes: renders nothing when there are no documents. The download name is derived from the listing address (`900-nw-8th-ave-document.pdf`, numbered when there are several) because no filename is stored. The link is `/media/{id}` with a `download` attribute; the route serves `application/pdf`.
 
 ### SearchFilters
 
@@ -172,7 +190,7 @@ Installed with the shadcn CLI (style `new-york`, base colour `neutral`, CSS vari
 - Props: `{ initial: PropertyFormValues; mode: "create" | "edit" }`
 - Classes: form `flex flex-col gap-6`; one `Card className="gap-6 p-6"`; section heading `text-lg font-semibold text-text-primary`; address/status grid `grid gap-4 sm:grid-cols-2`, details grid `grid gap-4 sm:grid-cols-3`; section dividers `h-px bg-border`; price prefix `$` absolutely at `left-3` in `text-text-muted`, input `pl-7`; footer `border-t border-border pt-6` with ghost Cancel link and one primary submit; pending spinner `Loader2` with `animate-spin`
 - Used in: `/properties/new`, `/properties/[id]/edit`
-- Notes: resolver is `zodResolver(propertyInputSchema)` from `validations/property.ts` with `mode: "onBlur"`; numeric fields validate as strings and transform to numbers on submit, so `PropertyInput` carries numbers and price stays in dollars. Submit only shows a toast until feature 09 wires the Server Action.
+- Notes: resolver is `zodResolver(propertyInputSchema)` from `validations/property.ts` with `mode: "onBlur"`; numeric fields validate as strings and transform to numbers on submit, so `PropertyInput` carries numbers and price stays in dollars. Submit shows a success toast (and redirects after create). A success result carrying `warning` also raises a `toast.warning` — currently the geocode rate-limit notice, so a saved listing with no coordinates explains itself before the redirect.
 
 ### AuthPageLayout
 
@@ -186,11 +204,11 @@ Installed with the shadcn CLI (style `new-york`, base colour `neutral`, CSS vari
 ### MediaUploader
 
 - Path: `components/properties/MediaUploader.tsx`
-- Type: server
-- Props: none
-- Classes: `Card className="gap-4 p-6"`; heading `text-lg font-semibold text-text-primary`; drop zone `flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-surface-secondary px-6 py-10 text-center`; icon `size-8 text-text-muted`
+- Type: client (local `items` / `uploads` state, sequential Server Action calls)
+- Props: `{ propertyId: string; items: MediaItem[] }`
+- Classes: `Card className="gap-4 p-6"`; heading `text-lg font-semibold text-text-primary`; drop zone `flex flex-col items-center gap-2 rounded-lg border border-dashed px-6 py-10 text-center`, idle `border-border bg-surface-secondary`, drag-over `border-accent bg-accent-light`; icon `size-8 text-text-muted`; upload rows `flex items-start justify-between gap-3 rounded-md border border-border px-3 py-2` with the error line in `text-xs text-error`; media rows `flex flex-col gap-3 rounded-lg border border-border p-3 lg:flex-row lg:items-center`; thumbnail `size-16 shrink-0 rounded-md border border-border object-cover` (PDFs use a `bg-surface-secondary` tile with a `size-6 text-text-muted` `FileText`); metadata `text-xs text-text-muted`; cover badge `bg-accent-light text-accent` on `Badge variant="ghost"`; alt input `w-full lg:max-w-xs`
 - Used in: `/properties/[id]/edit`
-- Notes: **non-functional placeholder** built in feature 05; feature 13 replaces the body with the real uploader
+- Notes: built as a placeholder in feature 05, made functional in feature 13. Multi-select and drag-and-drop upload one file per Server Action call so each file gets its own pending row, error message and `Dismiss` button; client-side checks and the server share the constants in `validations/media.ts`. Alt text saves on blur or Enter through `updateMediaAlt`; the star button (`aria-label="Set this photo as the cover"`) calls `setCover`; the trash button opens `ConfirmDialog`("Delete this photo?") and calls `deleteMedia`. Uploads and deletions update local state, so no `router.refresh()` is needed. Feature 14: only photos show the star and the alt input (a document shows "Documents appear in the listing's Documents section." instead), and deleting the cover promotes the next photo locally so the badge matches the server. Seeded media rows point at R2 objects that do not exist until real files are uploaded, so their thumbnails fall back to the neutral placeholder.
 
 ### ConfirmDialog
 
@@ -244,5 +262,7 @@ Mapping lives in `ui-tokens.md`: Active `bg-success-light text-success-foregroun
 | EmptyState       | `components/ui/EmptyState.tsx`         | 1     | done (feature 04) |
 | AuthPageLayout   | `components/auth/AuthPageLayout.tsx`   | 1     | done (feature 06) |
 | NavbarAuth       | `components/layout/NavbarAuth.tsx`     | 1     | done (feature 06, four mock states) |
-| MediaUploader    | `components/properties/MediaUploader.tsx`| 1   | placeholder (feature 05); real upload in feature 13 |
+| MediaUploader    | `components/properties/MediaUploader.tsx`| 5   | done (feature 13) |
+| PropertyPhoto    | `components/properties/PropertyPhoto.tsx` | 5 | done (feature 14) |
+| PropertyDocuments| `components/properties/PropertyDocuments.tsx`| 5 | done (feature 14) |
 | ConfirmDialog    | `components/ui/ConfirmDialog.tsx`      | 1   | done (feature 05) |

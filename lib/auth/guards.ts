@@ -1,10 +1,8 @@
 import { clerkClient } from "@clerk/nextjs/server";
-import { type CurrentUser, parseRole, type Role } from "@/lib/auth/current-user";
+import type { CurrentUser } from "@/lib/auth/current-user";
+import { parseRole, type Role } from "@/lib/auth/roles";
 
-/** Only agents and admins may create or change listings. Viewers are read-only. */
-export function canWriteListings(role: Role): boolean {
-  return role === "agent" || role === "admin";
-}
+export { canWriteListings } from "@/lib/auth/roles";
 
 /** Owner filter for listing queries and writes: admins act on every owner's rows (null). */
 export function ownerScope(user: Pick<CurrentUser, "id" | "role">): string | null {

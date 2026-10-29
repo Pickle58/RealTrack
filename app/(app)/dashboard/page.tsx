@@ -4,11 +4,12 @@ import { DashboardTable } from "@/components/dashboard/DashboardTable";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { requirePageUser } from "@/lib/auth/current-user";
-import { ownerScope } from "@/lib/auth/guards";
+import { canWriteListings, ownerScope } from "@/lib/auth/guards";
 import { listByOwner } from "@/services/properties";
 
 export default async function DashboardPage() {
   const user = await requirePageUser();
+  const canCreate = canWriteListings(user.role);
 
   const items = await listByOwner(ownerScope(user));
 
@@ -21,12 +22,14 @@ export default async function DashboardPage() {
             {items.length} {items.length === 1 ? "property" : "properties"} across every status.
           </p>
         </div>
-        <Button asChild>
-          <Link href="/properties/new">
-            <Plus aria-hidden />
-            Add property
-          </Link>
-        </Button>
+        {canCreate ? (
+          <Button asChild>
+            <Link href="/properties/new">
+              <Plus aria-hidden />
+              Add property
+            </Link>
+          </Button>
+        ) : null}
       </header>
 
       {items.length > 0 ? (
@@ -34,9 +37,11 @@ export default async function DashboardPage() {
       ) : (
         <EmptyState
           action={
-            <Button asChild>
-              <Link href="/properties/new">Add property</Link>
-            </Button>
+            canCreate ? (
+              <Button asChild>
+                <Link href="/properties/new">Add property</Link>
+              </Button>
+            ) : undefined
           }
           description="Catalog a listing to see it here."
           icon={<Building2 aria-hidden className="size-8" />}

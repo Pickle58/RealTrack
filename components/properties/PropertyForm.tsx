@@ -67,6 +67,7 @@ export function PropertyForm({
     if (!state) return;
     if (state.success) {
       toast.success(mode === "create" ? "Property created." : "Changes saved.");
+      if (state.warning) toast.warning(state.warning);
       if (mode === "create") router.push("/dashboard");
       return;
     }
