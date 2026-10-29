@@ -23,3 +23,5 @@ next-env.d.ts
 
 # dev server logs
 .dev-run.log
+.dev-log.txt
+cf-dev.log
