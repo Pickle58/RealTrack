@@ -20,3 +20,6 @@ next-env.d.ts
 
 # tooling
 .freebuff/
+
+# dev server logs
+.dev-run.log
