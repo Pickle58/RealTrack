@@ -14,6 +14,7 @@ node_modules
 # framework and build output
 .next
 next-env.d.ts
+*.tsbuildinfo
 /dist/
 .vinext/
 .cloudflare/
