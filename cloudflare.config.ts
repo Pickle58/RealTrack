@@ -17,6 +17,8 @@ export default defineConfig({
       KV: bindings.kv(),
       MEDIA: bindings.r2({ name: "real-estate-tracker-media" }),
       CLERK_SECRET_KEY: bindings.secret(),
+      GEOCODER_PROVIDER: bindings.text("geocod"),
+      GEOCODER_API_KEY: bindings.secret(),
     },
   }),
 });

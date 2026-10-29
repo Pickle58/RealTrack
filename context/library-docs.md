@@ -92,6 +92,8 @@ export function getEnv(): Env { return env; }
 - Never register `@vitejs/plugin-rsc` yourself: vinext does it when `app/` exists, and a duplicate fails the build. It only needs to be installed.
 - Native Node modules (`sharp`, `satori`, `@napi-rs/canvas`, …) are not used.
 - Run `npx vinext check` before upgrading vinext.
+- Route folders whose name starts with `_` (including `__`) are Next.js **private folders** and are not routed: `app/api/__probe/route.ts` answers 404. Use a plain name for temporary probes.
+- A brand-new route folder is only registered when the dev server starts; editing existing routes hot-reloads. Restart `pnpm dev` after adding one.
 
 ### Command cheat sheet
 
@@ -178,7 +180,7 @@ export async function cachePutJson(key: string, value: unknown, ttlSeconds: numb
 ```
 
 ```typescript
-// list version
+// list version (lib/kv.ts)
 export async function getListVersion(): Promise<string> {
   return (await getEnv().KV.get("properties:list:version")) ?? "0";
 }
@@ -187,14 +189,20 @@ export async function bumpListVersion(): Promise<void> {
 }
 ```
 
+`lib/kv.ts` also exports the key builders (`propertyListKey(version, queryHash)`, `propertyDetailKey(id)`) and `cacheDelete(key)`. Cache failures are swallowed and logged as `[kv/<helper>]`, never thrown.
+
 **Rules:**
 
 - Cache helpers swallow errors and return `null` (cache miss). KV holds no auth state in this project.
 - `expirationTtl` minimum is 60 seconds. Use ≥ 60.
 - KV is eventually consistent across regions: never use it for anything that must be immediately correct. Permissions come from Clerk (identity, role) and D1 (`owner_id`).
 - Query hash: SHA-256 (Web Crypto) of the normalized, key-sorted filter JSON, hex-truncated to 32 chars.
-- Rate limit counter: `ratelimit:{scope}:{ip}:{window}` with TTL = window.
-- Rate limits apply to geocoding and media upload only, keyed by Clerk user ID.
+- Rate limit counter: `ratelimit:{scope}:{userId}:{window}` with TTL = window (helper: `consumeRateLimit` in `lib/kv.ts`).
+- Rate limits apply to geocoding and media upload only, keyed by Clerk user ID; a KV failure fails open. Both budgets are 60 calls an hour. Geocoding spends its counter in `services/geocoding.ts` only on a cache miss and reports `rateLimited` in its outcome, which `services/properties.ts` passes up as `GeocodeStatus` so the action can warn; media uploads spend theirs in `actions/media.ts` before the file is read (the action, not the service, knows the acting user when an admin acts on another owner's listing).
+- Only the anonymous search and detail reads are cached (`services/properties.ts`). Owner/admin/draft reads bypass KV, and a cached detail is reused only while its status is `active`.
+- Invalidation goes through `lib/events.ts` (`emitPropertyEvent`), never through inline `KV.delete` calls in actions. Every event bumps the list version; `updated`/`deleted` also delete `properties:{id}`.
+- Development logs `[services/properties] cache hit|miss <key>` for every public read; that is the quickest way to confirm caching without a debug header.
+- Inspecting the local KV store: `cf kv namespaces list --local` returns `[]` (the namespace is simulated), so use the simulated id: `cf kv keys list --namespace-id KV-real-estate-tracker --local --persist-to .cloudflare/state` (and `cf kv keys get <name> --namespace-id … --local --persist-to …`). List/detail entries expire in 60 s / 300 s, so read them promptly.
 
 ---
 
@@ -217,12 +225,16 @@ export async function deleteMedia(key: string): Promise<void> {
 
 ```typescript
 // app/media/[id]/route.ts: streaming response
-const object = await getMedia(row.r2Key);
+// The row lookup and access rule live in services/media; the resolver runs only for a non-active parent.
+const target = await getForServing(id, getOptionalUser);
+if (!target) return new Response("Not found", { status: 404 });
+
+const object = await getMedia(target.r2Key);
 if (!object) return new Response("Not found", { status: 404 });
 return new Response(object.body, {
   headers: {
     "Content-Type": object.httpMetadata?.contentType ?? "application/octet-stream",
-    "Cache-Control": isPublic ? "public, max-age=3600" : "private, no-store",
+    "Cache-Control": target.isPublic ? "public, max-age=3600" : "private, no-store",
     "X-Content-Type-Options": "nosniff",
   },
 });
@@ -234,6 +246,24 @@ return new Response(object.body, {
 - Key format is always `properties/{propertyId}/media/{mediaId}`.
 - Stream bodies; never buffer files larger than needed.
 - Delete the R2 object whenever the DB row is deleted, and delete all objects with prefix `properties/{id}/media/` when a property is deleted (use `list({ prefix })`).
+
+### Uploads through Server Actions
+
+```typescript
+// actions/media.ts (client calls it directly, once per file)
+const file = formData.get("file");
+if (!file || typeof file === "string") return fail("Choose a file to upload.");
+
+// services/media.ts
+await r2.putMedia(key, await file.arrayBuffer(), file.type);
+const [row] = await db.insert(propertyMedia).values({ ... }).returning();
+```
+
+- Vinext accepts a `File` inside a `FormData` argument to a Server Action. `formData.get()` returns `File | string | null`, so narrow with `typeof file === "string"`; `instanceof File` is not reliable across the worker/client boundary.
+- Validate `file.size` and `file.type` **before** `arrayBuffer()`, so an oversized upload is rejected without being buffered.
+- One Server Action call per file, issued from a client loop, gives each file its own pending row and error message; a single multi-file call can only report one status for the batch.
+- Put into R2 first, insert the row second, and delete the object in the insert's `catch` so storage never keeps a file the database does not know about.
+- **Server Action bodies default to 1 MB** in Next.js and in vinext (it enforces the limit before the action runs). `next.config.ts` raises `experimental.serverActions.bodySizeLimit` to `"12mb"`, one file per call against the 10 MB cap in `validations/media.ts`; without it, any photo between 1 MB and 10 MB fails with a body-size error instead of reaching the action. Keep the two numbers in step if the media cap changes.
 
 ---
 
@@ -370,23 +400,31 @@ export async function getFreshRole(userId: string): Promise<Role> {
 
 ---
 
-## Geocoder (default Mapbox)
+## Geocoder (geocod.io, API v2)
 
 ```typescript
-// lib/geocoder/mapbox.ts
-const res = await fetch(
-  `https://api.mapbox.com/search/geocode/v6/forward?q=${encodeURIComponent(query)}&limit=1&access_token=${key}`,
-  { signal: AbortSignal.timeout(4000) },
-);
+// lib/geocoder/geocod.ts
+const params = new URLSearchParams({
+  street, city, state_province, postal_code, country: "USA", limit: "1",
+});
+const res = await fetch(`https://api.geocod.io/v2/geocode?${params.toString()}`, {
+  headers: { Authorization: `Bearer ${getEnv().GEOCODER_API_KEY}` },
+  signal: AbortSignal.timeout(4000),
+});
 if (!res.ok) return null;
+// results[0].location.lat / .lng, results[0].formatted_address
 ```
 
 **Rules:**
 
-- Implement the `Geocoder` interface; selecting a vendor happens only in `lib/geocoder/index.ts`.
-- 4 s timeout; non-2xx or timeout returns `null` after logging status only (no address).
-- Always check KV `geocode:{addressHash}` first. Normalize (trim, lowercase, collapse spaces) before hashing.
-- Re-geocode on update only when an address field actually changed.
+- Base URL is `https://api.geocod.io/v2/`; the version prefix is required. Send the key in the `Authorization: Bearer` header, never `?api_key=`, so URLs and error text never carry it.
+- Send components (`street`, `street2`, `city`, `state_province`, `postal_code`, `country`), not a concatenated query. `country` accepts `USA` | `Canada` | `Mexico` | `GB`; anything else is not geocoded (return `null`) rather than being resolved as a US address.
+- Results are ordered most-accurate-first, so `results[0]` is the pick. No results means `null`.
+- Implement the `Geocoder` interface; selecting a vendor happens only in `lib/geocoder/index.ts` (`GEOCODER_PROVIDER`, default `geocod`). `GEOCODER_PROVIDER` is a text binding and `GEOCODER_API_KEY` a secret binding in `cloudflare.config.ts`; the key lives in `.dev.vars` locally and in the deployed secret otherwise. Never in `.env.local`, never in a client bundle.
+- 4 s timeout; non-2xx, timeout, missing key or no match returns `null` after logging the status or error name only (no address, no key).
+- Always check KV `geocode:{addressHash}` first (`cacheGetJson`/`cachePutJson`, 30-day TTL). Normalize (trim, lowercase, collapse spaces) before hashing with `sha256Hex`.
+- Re-geocode on update only when an address field actually changed; otherwise keep the stored coordinates.
+- Rate limit provider calls with `consumeRateLimit("geocode", userId, 60, 3600)` before the fetch. Cached hits do not count, and the check fails open.
 
 ---
 
@@ -406,6 +444,22 @@ The project uses the classic **Radix**-based components (the unified `radix-ui` 
 ### Testing overlays
 
 Radix keeps a dialog, sheet or alert dialog mounted until its exit animation fires `animationend`. In a headless or **hidden** browser tab the document's animation timeline does not advance, so `document.timeline.currentTime` stays `0`, the animation never ends, and the overlay stays in the DOM even though `data-state` is `closed`. That is an artefact of the test environment, not a bug: inject `*,*::before,*::after{animation:none!important}` before interacting when you need to assert that an overlay closes.
+
+The same hidden-tab limitation swallows focus events: `element.focus()` followed by `element.blur()` fires neither `blur` nor `focusout`, so a save-on-blur handler never runs. To test one, set the value with the native `HTMLInputElement.prototype.value` setter and dispatch `new FocusEvent("focusout", { bubbles: true })`; that reaches React's `onBlur`.
+
+---
+
+## Security headers and CSP
+
+Declared once in `next.config.ts` with `headers()`, applied to every route (`source: "/(.*)"`), not in `proxy.ts`. vinext resolves the rule at server start and applies it to HTML, `/api/*` responses and Clerk's handshake redirects (development and `vite preview` both log `✨ Parsed 1 valid header rule`).
+
+- Headers: `Content-Security-Policy`, `Strict-Transport-Security` (1 year, includeSubDomains), `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` (camera, microphone, geolocation, payment, usb, interest-cohort all off).
+- The CSP must keep, or Clerk/Turnstile/fonts break: `https://*.clerk.accounts.dev` and `https://*.clerk.com` in `script-src`/`connect-src`/`frame-src`/`img-src`, `https://*.protect.clerk.com` in `script-src`/`frame-src` and `https://*.protect.clerk.com:*` (port wildcard required) in `connect-src`, `https://challenges.cloudflare.com` (Turnstile) in `script-src`/`connect-src`/`frame-src`, `https://img.clerk.com` in `img-src`, and `https://fonts.googleapis.com` / `https://fonts.gstatic.com` in `style-src` / `font-src` for `next/font/google`.
+- `'unsafe-inline'` in `script-src` and `style-src` is required by the App Router and Clerk's CSS-in-JS. `'unsafe-eval'` and the Vite HMR websocket (`ws://localhost:*`) are added only when `NODE_ENV !== "production"`.
+- Editing `headers()` requires a `pnpm dev` restart; the policy is resolved at startup, not per request.
+- A production Clerk instance on `clerk.<domain>` needs that exact host added in feature 19 — the wildcards above are what the dev instance uses.
+
+Verify with `curl -s -D - -o /dev/null http://localhost:5173/properties | grep -i content-security-policy` and, for enforcement, add a `securitypolicyviolation` listener and load a foreign script/image in the browser.
 
 ---
 

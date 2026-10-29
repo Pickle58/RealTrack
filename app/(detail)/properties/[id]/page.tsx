@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink, Info } from "lucide-react";
+import { PropertyDocuments } from "@/components/properties/PropertyDocuments";
 import { PropertyFacts } from "@/components/properties/PropertyFacts";
 import { PropertyGallery } from "@/components/properties/PropertyGallery";
 import { StatusBadge } from "@/components/properties/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { getOptionalUser } from "@/lib/auth/current-user";
 import { formatPrice } from "@/lib/format";
 import { getById } from "@/services/properties";
 
@@ -15,11 +17,12 @@ export default async function PropertyDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const detail = await getById(id, null);
+  // Anonymous visitors still get active listings only; an owner or admin can preview any status.
+  const detail = await getById(id, await getOptionalUser());
 
   if (!detail) notFound();
 
-  const { property, images } = detail;
+  const { property, images, documents } = detail;
   const hasCoordinates = property.latitude !== null && property.longitude !== null;
   const coordinates = hasCoordinates
     ? `${property.latitude?.toFixed(5)}, ${property.longitude?.toFixed(5)}`
@@ -88,6 +91,8 @@ export default async function PropertyDetailPage({
           </div>
         </Card>
       </div>
+
+      <PropertyDocuments address={property.addressLine1} documents={documents} />
     </article>
   );
 }

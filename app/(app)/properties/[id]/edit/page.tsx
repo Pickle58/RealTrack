@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { requirePageUser } from "@/lib/auth/current-user";
 import { canWriteListings, ownerScope } from "@/lib/auth/guards";
 import { getOwnedProperty } from "@/services/properties";
+import { list as listMedia } from "@/services/media";
 import { propertyToFormValues } from "@/validations/property";
 
 export default async function EditPropertyPage({
@@ -23,6 +24,7 @@ export default async function EditPropertyPage({
   if (!detail) notFound();
 
   const { property } = detail;
+  const media = await listMedia(property.id, ownerScope(user));
 
   return (
     <div className="flex flex-col gap-6">
@@ -43,7 +45,7 @@ export default async function EditPropertyPage({
       </div>
 
       <PropertyForm initial={propertyToFormValues(property)} mode="edit" propertyId={property.id} />
-      <MediaUploader />
+      <MediaUploader items={media} propertyId={property.id} />
     </div>
   );
 }

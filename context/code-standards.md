@@ -99,7 +99,7 @@ export async function createProperty(
 }
 ```
 
-- Return `ActionResult<T> = { success: true; data: T } | { success: false; error: string; fieldErrors?: Record<string, string[]> }`.
+- Return `ActionResult<T> = { success: true; data: T; warning?: string } | { success: false; error: string; fieldErrors?: Record<string, string[]> }`. Use `ok(data, warning)` when the write succeeded but something degraded (e.g. the geocode budget was spent and coordinates are null); the warning is shown as a toast next to the success message.
 - Authorize first, validate with Zod, then call a service.
 - Redirects happen in the calling code after a success result, never inside a `try` block (`redirect()` throws).
 - Never expose raw error messages to the client.
