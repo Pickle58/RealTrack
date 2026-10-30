@@ -4,7 +4,7 @@
 
 ## About the Project
 
-Real Estate Tracker is a web app where agents catalog property listings (address, bedrooms, bathrooms, price, status, photos and documents) and where anyone can browse and search the active listings. It runs entirely on Cloudflare (Workers, D1, KV, R2).
+Real Estate Tracker is a web app where agents catalog property listings (address, bedrooms, bathrooms, lot size, electric service, septic, water, price, status, photos and documents) and where anyone can browse and search the active listings. It covers built homes and vacant land: bedrooms and bathrooms are optional, and lot size can be recorded in square feet or acres. It runs entirely on Cloudflare (Workers, D1, KV, R2).
 
 ---
 
@@ -47,7 +47,7 @@ Top navbar only. Left: RealTrack logo (two-colour mark: accent teal roof over an
 ### 2. Create a property (agent)
 
 1. Agent signs up or signs in through Clerk, clicks **Add property**.
-2. Fills the form (address, bedrooms, bathrooms, septic, water, price, status).
+2. Fills the form (address, bedrooms, bathrooms, lot size and unit, electric, septic, water, price, status). Bedrooms, bathrooms, lot size and electric are optional, so vacant land can be saved without them.
 3. Server Action validates input → geocodes the address (cache first) → inserts into D1 → emits `property.created` → redirects to the edit page to add media.
 4. If geocoding fails the property still saves with null coordinates and a visible "Location not verified" note.
 
@@ -92,6 +92,7 @@ Owner or admin edits fields (re-geocodes if address changed) or deletes the prop
 ## Features In Scope
 
 - Property CRUD with status (draft, active, sold, off-market)
+- Houses and vacant land in one record: optional bedrooms/baths plus lot size (sq ft or acres) and electric service
 - Address normalization and lat/lng via external geocoding API
 - Search and filter by address text, price, bedrooms, bathrooms, status
 - Media upload, list, delete (images, floor plans, documents)

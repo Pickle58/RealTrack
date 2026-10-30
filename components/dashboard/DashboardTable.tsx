@@ -57,8 +57,8 @@ export function DashboardTable({ items }: { items: PropertyListItem[] }) {
               <TableCell className={cellClass}>
                 <StatusBadge status={property.status} />
               </TableCell>
-              <TableCell className={cellClass}>{property.bedrooms}</TableCell>
-              <TableCell className={cellClass}>{property.bathrooms}</TableCell>
+              <TableCell className={cellClass}>{property.bedrooms ?? "—"}</TableCell>
+              <TableCell className={cellClass}>{property.bathrooms ?? "—"}</TableCell>
               <TableCell className={`${cellClass} font-medium`}>
                 {formatPrice(property.priceCents, property.currency)}
               </TableCell>

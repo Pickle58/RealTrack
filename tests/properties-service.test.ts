@@ -31,6 +31,9 @@ function input(overrides: Partial<PropertyInput> = {}): PropertyInput {
     country: "US",
     bedrooms: 3,
     bathrooms: 2,
+    lotSize: null,
+    lotSizeUnit: null,
+    electric: null,
     septic: "city",
     water: "well",
     price: 350_000,
@@ -305,6 +308,37 @@ describe("create", () => {
 
     expect(created.geocode).toBe("rate_limited");
     expect(await properties.getOwnedProperty(created.id, AGENT_A.id)).not.toBeNull();
+  });
+
+  it("stores a vacant-land listing without bedrooms, baths or utilities", async () => {
+    const created = await properties.create(
+      input({
+        bedrooms: null,
+        bathrooms: null,
+        lotSize: 12.5,
+        lotSizeUnit: "acres",
+        electric: "available",
+      }),
+      AGENT_A.id,
+    );
+
+    const stored = await properties.getOwnedProperty(created.id, AGENT_A.id);
+    expect(stored?.property).toMatchObject({
+      bedrooms: null,
+      bathrooms: null,
+      lotSize: 12.5,
+      lotSizeUnit: "acres",
+      electric: "available",
+    });
+    expect((await properties.search(search(), null)).items[0]?.property.id).toBe(created.id);
+    expect((await properties.search(search({ minBedrooms: 1 }), null)).items).toEqual([]);
+  });
+
+  it("drops a lot size unit that comes without a size", async () => {
+    const created = await properties.create(input({ lotSize: null, lotSizeUnit: "acres" }), AGENT_A.id);
+
+    const stored = await properties.getOwnedProperty(created.id, AGENT_A.id);
+    expect(stored?.property).toMatchObject({ lotSize: null, lotSizeUnit: null });
   });
 
   it("keeps a new draft out of the public list", async () => {

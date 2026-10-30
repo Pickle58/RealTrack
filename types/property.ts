@@ -10,6 +10,14 @@ export const waterValues = ["city", "well"] as const;
 
 export type WaterSource = (typeof waterValues)[number];
 
+export const electricValues = ["at_property", "available", "none"] as const;
+
+export type ElectricSupply = (typeof electricValues)[number];
+
+export const lotSizeUnitValues = ["sqft", "acres"] as const;
+
+export type LotSizeUnit = (typeof lotSizeUnitValues)[number];
+
 /** Listing fields only: ownership stays on the rows in `services/`, never in a payload. */
 export type Property = {
   id: string;
@@ -21,8 +29,11 @@ export type Property = {
   country: string;
   latitude: number | null;
   longitude: number | null;
-  bedrooms: number;
-  bathrooms: number;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  lotSize: number | null;
+  lotSizeUnit: LotSizeUnit | null;
+  electric: ElectricSupply | null;
   septic: SepticSystem | null;
   water: WaterSource | null;
   priceCents: number;

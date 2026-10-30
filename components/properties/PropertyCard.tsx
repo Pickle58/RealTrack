@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { Bath, BedDouble } from "lucide-react";
+import { Bath, BedDouble, Ruler } from "lucide-react";
 import { PropertyImagePlaceholder } from "@/components/properties/PropertyImagePlaceholder";
 import { PropertyPhoto } from "@/components/properties/PropertyPhoto";
 import { StatusBadge } from "@/components/properties/StatusBadge";
 import { Card } from "@/components/ui/card";
-import { formatPrice } from "@/lib/format";
+import { formatLotSize, formatPrice } from "@/lib/format";
 import type { PropertyListItem } from "@/types/property";
 
 export function PropertyCard({ item }: { item: PropertyListItem }) {
@@ -37,15 +37,25 @@ export function PropertyCard({ item }: { item: PropertyListItem }) {
           <p className="text-xs text-text-muted">
             {property.city}, {property.stateProvince} {property.postalCode}
           </p>
-          <div className="mt-auto flex items-center gap-4 pt-2 text-sm text-text-secondary">
-            <span className="inline-flex items-center gap-1.5">
-              <BedDouble aria-hidden className="size-4" />
-              {property.bedrooms} bd
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Bath aria-hidden className="size-4" />
-              {property.bathrooms} ba
-            </span>
+          <div className="mt-auto flex flex-wrap items-center gap-4 pt-2 text-sm text-text-secondary">
+            {property.bedrooms !== null ? (
+              <span className="inline-flex items-center gap-1.5">
+                <BedDouble aria-hidden className="size-4" />
+                {property.bedrooms} bd
+              </span>
+            ) : null}
+            {property.bathrooms !== null ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Bath aria-hidden className="size-4" />
+                {property.bathrooms} ba
+              </span>
+            ) : null}
+            {property.lotSize !== null && property.lotSizeUnit !== null ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Ruler aria-hidden className="size-4" />
+                {formatLotSize(property.lotSize, property.lotSizeUnit)}
+              </span>
+            ) : null}
           </div>
         </div>
       </Link>

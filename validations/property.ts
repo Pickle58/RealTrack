@@ -1,5 +1,7 @@
 import { z } from "zod";
 import {
+  electricValues,
+  lotSizeUnitValues,
   propertyStatusValues,
   septicValues,
   waterValues,
@@ -7,6 +9,7 @@ import {
 } from "@/types/property";
 
 const MAX_PRICE_DOLLARS = 1_000_000_000;
+const MAX_LOT_SIZE = 100_000_000;
 const MAX_COUNT = 50;
 
 function requiredText(label: string, max: number) {
@@ -44,21 +47,60 @@ function optionalChoice<T extends string>(values: readonly T[], message: string)
     .transform((value) => (value === undefined || value === "" ? null : (value as T)));
 }
 
-function halfStepAmount(label: string, min: number, max: number) {
+/**
+ * A blank optional amount means "not specified" and is stored as NULL, so vacant land and
+ * listings nobody counted can omit it. A zero is a real value the agent typed.
+ */
+function optionalAmount(label: string, min: number, max: number) {
   return z
     .string()
-    .trim()
-    .min(1, `${label} is required.`)
-    .refine((value) => Number.isFinite(Number(value)), `Enter ${label.toLowerCase()} as a number.`)
+    .optional()
+    .transform((value) => (value ?? "").trim())
     .refine(
-      (value) => Number(value) >= min && Number(value) <= max,
+      (value) => value === "" || Number.isFinite(Number(value)),
+      `Enter ${label.toLowerCase()} as a number.`,
+    )
+    .refine(
+      (value) => value === "" || (Number(value) >= min && Number(value) <= max),
+      `${label} must be between ${min} and ${max}.`,
+    )
+    .transform((value) => (value === "" ? null : Number(value)));
+}
+
+function optionalWholeAmount(label: string, min: number, max: number) {
+  return z
+    .string()
+    .optional()
+    .transform((value) => (value ?? "").trim())
+    .refine(
+      (value) => value === "" || Number.isInteger(Number(value)),
+      `Enter ${label.toLowerCase()} as a whole number.`,
+    )
+    .refine(
+      (value) => value === "" || (Number(value) >= min && Number(value) <= max),
+      `${label} must be between ${min} and ${max}.`,
+    )
+    .transform((value) => (value === "" ? null : Number(value)));
+}
+
+function optionalHalfStepAmount(label: string, min: number, max: number) {
+  return z
+    .string()
+    .optional()
+    .transform((value) => (value ?? "").trim())
+    .refine(
+      (value) => value === "" || Number.isFinite(Number(value)),
+      `Enter ${label.toLowerCase()} as a number.`,
+    )
+    .refine(
+      (value) => value === "" || (Number(value) >= min && Number(value) <= max),
       `${label} must be between ${min} and ${max}.`,
     )
     .refine(
-      (value) => Math.round(Number(value) * 2) === Number(value) * 2,
+      (value) => value === "" || Math.round(Number(value) * 2) === Number(value) * 2,
       "Use half-bath increments (0.5).",
     )
-    .transform(Number);
+    .transform((value) => (value === "" ? null : Number(value)));
 }
 
 export const propertyInputSchema = z.object({
@@ -73,12 +115,18 @@ export const propertyInputSchema = z.object({
     .toUpperCase()
     .length(2, "Use a two-letter country code.")
     .regex(/^[A-Z]{2}$/, "Use a two-letter country code."),
-  bedrooms: wholeAmount("Bedrooms", 0, MAX_COUNT),
-  bathrooms: halfStepAmount("Bathrooms", 0, MAX_COUNT),
+  bedrooms: optionalWholeAmount("Bedrooms", 0, MAX_COUNT),
+  bathrooms: optionalHalfStepAmount("Bathrooms", 0, MAX_COUNT),
+  lotSize: optionalAmount("Lot size", 0, MAX_LOT_SIZE),
+  lotSizeUnit: optionalChoice(lotSizeUnitValues, "Choose square feet or acres."),
+  electric: optionalChoice(electricValues, "Choose at property, available or none."),
   septic: optionalChoice(septicValues, "Choose city or tank."),
   water: optionalChoice(waterValues, "Choose city or well."),
   price: wholeAmount("Price", 0, MAX_PRICE_DOLLARS),
   status: z.enum(propertyStatusValues, { error: "Choose a status." }),
+}).refine((input) => input.lotSize === null || input.lotSizeUnit !== null, {
+  message: "Choose square feet or acres.",
+  path: ["lotSizeUnit"],
 });
 
 /** Raw form values are strings; the parsed output is numeric and price stays in dollars. */
@@ -94,6 +142,9 @@ export const emptyPropertyFormValues: PropertyFormValues = {
   country: "US",
   bedrooms: "",
   bathrooms: "",
+  lotSize: "",
+  lotSizeUnit: "sqft",
+  electric: "",
   septic: "",
   water: "",
   price: "",
@@ -108,8 +159,11 @@ export function propertyToFormValues(property: Property): PropertyFormValues {
     stateProvince: property.stateProvince,
     postalCode: property.postalCode,
     country: property.country,
-    bedrooms: String(property.bedrooms),
-    bathrooms: String(property.bathrooms),
+    bedrooms: property.bedrooms === null ? "" : String(property.bedrooms),
+    bathrooms: property.bathrooms === null ? "" : String(property.bathrooms),
+    lotSize: property.lotSize === null ? "" : String(property.lotSize),
+    lotSizeUnit: property.lotSizeUnit ?? "sqft",
+    electric: property.electric ?? "",
     septic: property.septic ?? "",
     water: property.water ?? "",
     price: String(Math.round(property.priceCents / 100)),

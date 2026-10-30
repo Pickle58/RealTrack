@@ -209,8 +209,11 @@ There is **no `users` table**. Identity, credentials, and sessions live in Clerk
 | country        | text    | Default `US`                                       |
 | latitude       | real    | Nullable; from geocoder                            |
 | longitude      | real    | Nullable; from geocoder                            |
-| bedrooms       | integer | Required, ≥ 0                                      |
-| bathrooms      | real    | Required, ≥ 0, step 0.5                            |
+| bedrooms       | integer | Nullable, ≥ 0; NULL = not specified (vacant land)  |
+| bathrooms      | real    | Nullable, ≥ 0, step 0.5; NULL = not specified      |
+| lot_size       | real    | Nullable, ≥ 0 (NULL = not specified)               |
+| lot_size_unit  | text    | Nullable; `sqft` \| `acres`; set whenever lot_size is |
+| electric       | text    | Nullable; `at_property` \| `available` \| `none`   |
 | septic         | text    | Nullable; `city` \| `tank` (NULL = not specified)  |
 | water          | text    | Nullable; `city` \| `well` (NULL = not specified)  |
 | price_cents    | integer | Required, ≥ 0                                      |

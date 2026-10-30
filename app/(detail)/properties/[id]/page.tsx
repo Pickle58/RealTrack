@@ -68,6 +68,9 @@ export default async function PropertyDetailPage({
           <PropertyFacts
             bathrooms={property.bathrooms}
             bedrooms={property.bedrooms}
+            electric={property.electric}
+            lotSize={property.lotSize}
+            lotSizeUnit={property.lotSizeUnit}
             septic={property.septic}
             water={property.water}
           />
