@@ -30,12 +30,18 @@ function wholeAmount(label: string, min: number, max: number) {
     .transform(Number);
 }
 
-/** An unanswered select arrives as an empty string and is stored as NULL ("not specified"). */
+/**
+ * An unanswered select arrives as an empty string and is stored as NULL ("not specified").
+ * An omitted field means the same thing, so a form that predates the field still submits.
+ */
 function optionalChoice<T extends string>(values: readonly T[], message: string) {
   return z
     .string()
-    .refine((value) => value === "" || values.includes(value as T), { message })
-    .transform((value) => (value === "" ? null : (value as T)));
+    .optional()
+    .refine((value) => value === undefined || value === "" || values.includes(value as T), {
+      message,
+    })
+    .transform((value) => (value === undefined || value === "" ? null : (value as T)));
 }
 
 function halfStepAmount(label: string, min: number, max: number) {

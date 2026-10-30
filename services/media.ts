@@ -151,7 +151,13 @@ export async function upload(propertyId: string, ownerId: MediaOwnerScope, file:
   const id = crypto.randomUUID();
   const key = `properties/${propertyId}/media/${id}`;
 
-  await r2.putMedia(key, await file.arrayBuffer(), file.type);
+  // A missing or unavailable bucket must read as a storage failure, not a raw binding error.
+  try {
+    await r2.putMedia(key, await file.arrayBuffer(), file.type);
+  } catch (error) {
+    console.error("[services/media/upload/r2]", error);
+    throw new MediaError("storage_failed");
+  }
 
   const values = {
     id,

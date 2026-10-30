@@ -26,7 +26,7 @@ export function PropertyPhoto({
   }, [src]);
 
   if (failed) {
-    return <PropertyImagePlaceholder className={placeholderClassName ?? className} />;
+    return <PropertyImagePlaceholder alt={alt} className={placeholderClassName ?? className} />;
   }
 
   return <img alt={alt} className={className} onError={() => setFailed(true)} ref={ref} src={src} />;

@@ -290,12 +290,14 @@ Called server-side only; API key from a Worker secret. Failure or rate limit ret
 
 | Dependency down   | Behavior                                                                    |
 | ----------------- | --------------------------------------------------------------------------- |
-| D1                | Read and write pages show a friendly error page; no partial render          |
+| D1                | Read and write pages show a friendly error page; no partial render. Every route group has an `error.tsx` rendering the `RouteError` panel (a streamed page can still carry status 200), `/api/properties*` answers `503` with the JSON envelope, and a Server Action returns its readable failure message |
 | KV                | Cache reads treated as misses (go to D1); rate-limit checks fail open; auth is unaffected |
-| Clerk             | Sign-in and sign-up fail. Public browsing keeps working. Already signed-in users keep working until their session token expires |
-| R2                | Listings render without images (placeholder); uploads return a readable error |
+| Clerk             | Sign-in and sign-up fail. Public browsing keeps working: `getOptionalUser` catches an `auth()` failure and resolves to the anonymous view (which is also why a protected page redirects to sign-in it cannot load) |
+| R2                | Listings render without images (placeholder); `/media/[id]` answers 503; uploads return "Could not store the file. Please try again." (`storage_failed`) |
 | Geocoder          | Property saves without coordinates; "Location not verified" indicator       |
 | Partial write     | Media insert failure deletes the R2 object; R2 delete failure is logged and the DB row is still removed (orphan cleanup noted in tracker) |
+
+Each row is exercised by build-plan feature 18; the simulations and their evidence are recorded in `progress-tracker.md` (session 25), and the orphan cases are listed under "Orphan-cleanup cases" there.
 
 ---
 

@@ -8,11 +8,24 @@ export class AuthError extends Error {
   }
 }
 
+/**
+ * A Clerk outage must not blank the public site: the caller gets the anonymous view, which is the
+ * least privileged one. Protected pages still redirect (and sign-in itself fails), per the
+ * failure table in `architecture.md`.
+ */
 export async function getOptionalUser(): Promise<CurrentUser | null> {
-  const { userId, sessionClaims } = await auth();
-  if (!userId) return null;
+  try {
+    const { userId, sessionClaims } = await auth();
+    if (!userId) return null;
 
-  return { id: userId, role: parseRole(sessionClaims?.metadata?.role) };
+    return { id: userId, role: parseRole(sessionClaims?.metadata?.role) };
+  } catch (error) {
+    console.error(
+      "[lib/auth/current-user/getOptionalUser]",
+      error instanceof Error ? error.name : "unknown error",
+    );
+    return null;
+  }
 }
 
 /** For Server Actions: throws AuthError when signed out, so the action can return a failure. */

@@ -135,6 +135,9 @@ describe("propertyInputSchema", () => {
       septic: null,
       water: null,
     });
+    expect(
+      propertyInputSchema.parse({ ...validFormValues, septic: undefined, water: undefined }),
+    ).toMatchObject({ septic: null, water: null });
     expect(firstIssueMessage({ ...validFormValues, septic: "well" })).toBe("Choose city or tank.");
     expect(firstIssueMessage({ ...validFormValues, water: "tank" })).toBe("Choose city or well.");
   });

@@ -55,6 +55,12 @@ describe("getOptionalUser", () => {
 
     expect(await getOptionalUser()).toEqual({ id: "user_admin", role: "admin" });
   });
+
+  it("treats a Clerk outage as signed out, so public pages still render", async () => {
+    authMock.mockRejectedValue(new Error("Clerk is unreachable"));
+
+    expect(await getOptionalUser()).toBeNull();
+  });
 });
 
 describe("requireUser", () => {
@@ -70,6 +76,12 @@ describe("requireUser", () => {
     signIn({ metadata: { role: "viewer" } });
 
     expect(await requireUser()).toEqual({ id: "user_1", role: "viewer" });
+  });
+
+  it("fails closed as signed out during a Clerk outage, never as a role", async () => {
+    authMock.mockRejectedValue(new Error("Clerk is unreachable"));
+
+    await expect(requireUser()).rejects.toBeInstanceOf(AuthError);
   });
 });
 
