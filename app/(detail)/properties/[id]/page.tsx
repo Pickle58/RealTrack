@@ -65,7 +65,12 @@ export default async function PropertyDetailPage({
             </p>
           </div>
 
-          <PropertyFacts bathrooms={property.bathrooms} bedrooms={property.bedrooms} />
+          <PropertyFacts
+            bathrooms={property.bathrooms}
+            bedrooms={property.bedrooms}
+            septic={property.septic}
+            water={property.water}
+          />
 
           <div className="flex flex-col gap-1">
             <p className="text-xs font-medium text-text-secondary">Location</p>

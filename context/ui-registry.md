@@ -36,16 +36,25 @@ After building any component, record: name, file path, props, and exact classes 
 - Props: none
 - Classes: `sticky top-0 z-40 w-full border-b border-border bg-surface`; inner `mx-auto flex h-16 w-full max-w-[1200px] items-center justify-between gap-4 px-4 md:px-6`; logo `truncate text-base font-semibold text-text-primary`; nav link `text-sm font-medium`, active `text-accent`, inactive `text-text-secondary hover:text-text-primary`
 - Used in: every page, through `PageShell`
-- State coverage: **all four mock states** (feature 06). Links are **Browse** always plus **Dashboard** whenever the mock state is signed in; the right side is `NavbarAuth`. Feature 10 replaces `getMockAuthState()` with Clerk's `<SignedIn>` / `<SignedOut>` and deletes `lib/mock-auth.ts`.
+- Links are **Browse** always plus **Dashboard** whenever Clerk reports a session (`useAuth().isSignedIn`); the right side is `NavbarAuth`. Feature 10 replaced the mock state with Clerk and deleted `lib/mock-auth.ts`.
 
 ### NavbarAuth
 
 - Path: `components/layout/NavbarAuth.tsx`
-- Type: client (`getMockAuthState()`, dropdown, toast)
+- Type: client (Clerk `useAuth`, `<Show>`, `<UserButton>`)
 - Props: none
-- Classes: both states wrap in `flex shrink-0 items-center gap-2`; signed out is **Sign in** (`variant="secondary" size="sm"`) and **Sign up** (`size="sm"`); signed in is **Add property** (`size="sm"`, `Plus` icon, label `sr-only sm:not-sr-only` so it is icon-only on mobile with an accessible name) plus an avatar trigger `Button size="icon-sm" className="rounded-full bg-accent-light text-xs font-medium text-accent"` showing initials with `aria-label="Open user menu for {name}"`; menu `DropdownMenuContent align="end" className="w-56"`, label holds name / email / `Role: {role} (mock)`, then a **Dashboard** item and a **Sign out** item
+- Classes: both states wrap in `flex shrink-0 items-center gap-2`; signed out is **Sign in** (`variant="secondary" size="sm"`) and **Sign up** (`size="sm"`); signed in is **Add property** (`size="sm"`, `Plus` icon, label `sr-only sm:not-sr-only` so it is icon-only on mobile with an accessible name) when the role may write, plus `<UserButton />` wrapped in `ClientOnly`; the avatar and menu are Clerk's own components, styled through `lib/clerk-appearance.ts`
 - Used in: `Navbar`, so every page
-- Notes: four states come from `lib/mock-auth.ts` (**signed_out**, **viewer**, **agent**, **admin**). **Add property** renders for `agent` and `admin` only; **Sign out** is a no-op toast until feature 10. The menu is a placeholder, not Clerk's `UserButton`.
+- Notes: the role comes from `useAuth().sessionClaims.metadata.role` through `parseRole` in `lib/auth/roles.ts`; a missing or unknown claim resolves to `agent`, so the button stays visible and the page/action guards still enforce. **Add property** renders for `agent` and `admin` only; `viewer` sees just the avatar.
+
+### ClientOnly
+
+- Path: `components/ui/ClientOnly.tsx`
+- Type: client
+- Props: `{ children: ReactNode }`
+- Classes: none (renders `children` or `null`)
+- Used in: `AuthPageLayout` (around `<SignIn>` / `<SignUp>`) and `NavbarAuth` (around `<UserButton>`)
+- Notes: Clerk widgets render nothing until clerk-js reports `loaded`. If clerk-js wins the race against hydration the first client render contains the widget while the server output was empty, and React reports a hydration mismatch. This defers the subtree until a `useEffect` flag flips, so the server render and first client render are identical. Wrap widgets only, never data.
 
 ### PageShell
 
@@ -118,9 +127,10 @@ Installed with the shadcn CLI (style `new-york`, base colour `neutral`, CSS vari
 
 - Path: `components/properties/PropertyFacts.tsx`
 - Type: server
-- Props: `{ bedrooms: number; bathrooms: number }`
+- Props: `{ bedrooms: number; bathrooms: number; septic: SepticSystem | null; water: WaterSource | null }`
 - Classes: `dl` with `grid grid-cols-2 gap-4`; each fact `flex flex-col gap-1`; label `text-xs font-medium text-text-secondary`; value `inline-flex items-center gap-2 text-sm font-medium text-text-primary` with a `size-4 text-text-muted` icon
 - Used in: `/properties/[id]`, inside the details card
+- Notes: septic reads "City sewer" / "Septic tank" (`Waves` icon) and water reads "City water" / "Well" (`Droplet` icon); a NULL column shows "Not specified" instead of inventing a utility
 
 ### PropertyGallery
 
@@ -137,8 +147,8 @@ Installed with the shadcn CLI (style `new-york`, base colour `neutral`, CSS vari
 - Type: client (image error state)
 - Props: `{ src: string; alt: string; className?: string; placeholderClassName?: string }`
 - Classes: none of its own — the caller passes the img classes and, when the layout differs, `placeholderClassName` for `PropertyImagePlaceholder`
-- Used in: `PropertyCard`, `PropertyGallery`
-- Notes: swaps to `PropertyImagePlaceholder` on `onError`, and also on mount when the image already finished with `naturalWidth === 0` (a failure that happens before hydration). This is the R2-outage / missing-object fallback.
+- Used in: `PropertyCard`, `PropertyGallery`, `MediaUploader`
+- Notes: swaps to `PropertyImagePlaceholder` on `onError`, and also on mount when the image already finished with `naturalWidth === 0` (a failure that happens before hydration). This is the R2-outage / missing-object fallback. A `src` change clears the failed state before the `complete` / `naturalWidth` check, so a new photo is not stuck on the placeholder.
 
 ### PropertyDocuments
 
@@ -191,6 +201,7 @@ Installed with the shadcn CLI (style `new-york`, base colour `neutral`, CSS vari
 - Classes: form `flex flex-col gap-6`; one `Card className="gap-6 p-6"`; section heading `text-lg font-semibold text-text-primary`; address/status grid `grid gap-4 sm:grid-cols-2`, details grid `grid gap-4 sm:grid-cols-3`; section dividers `h-px bg-border`; price prefix `$` absolutely at `left-3` in `text-text-muted`, input `pl-7`; footer `border-t border-border pt-6` with ghost Cancel link and one primary submit; pending spinner `Loader2` with `animate-spin`
 - Used in: `/properties/new`, `/properties/[id]/edit`
 - Notes: resolver is `zodResolver(propertyInputSchema)` from `validations/property.ts` with `mode: "onBlur"`; numeric fields validate as strings and transform to numbers on submit, so `PropertyInput` carries numbers and price stays in dollars. Submit shows a success toast (and redirects after create). A success result carrying `warning` also raises a `toast.warning` — currently the geocode rate-limit notice, so a saved listing with no coordinates explains itself before the redirect.
+- Notes: the Details section also carries two optional selects, **Septic** (City / Tank) and **Water** (City / Well), in the same `sm:grid-cols-3` grid. Radix `SelectItem` rejects an empty value, so a `NOT_SPECIFIED` sentinel item maps back to `""`, which the schema turns into `null`.
 
 ### AuthPageLayout
 
@@ -208,7 +219,7 @@ Installed with the shadcn CLI (style `new-york`, base colour `neutral`, CSS vari
 - Props: `{ propertyId: string; items: MediaItem[] }`
 - Classes: `Card className="gap-4 p-6"`; heading `text-lg font-semibold text-text-primary`; drop zone `flex flex-col items-center gap-2 rounded-lg border border-dashed px-6 py-10 text-center`, idle `border-border bg-surface-secondary`, drag-over `border-accent bg-accent-light`; icon `size-8 text-text-muted`; upload rows `flex items-start justify-between gap-3 rounded-md border border-border px-3 py-2` with the error line in `text-xs text-error`; media rows `flex flex-col gap-3 rounded-lg border border-border p-3 lg:flex-row lg:items-center`; thumbnail `size-16 shrink-0 rounded-md border border-border object-cover` (PDFs use a `bg-surface-secondary` tile with a `size-6 text-text-muted` `FileText`); metadata `text-xs text-text-muted`; cover badge `bg-accent-light text-accent` on `Badge variant="ghost"`; alt input `w-full lg:max-w-xs`
 - Used in: `/properties/[id]/edit`
-- Notes: built as a placeholder in feature 05, made functional in feature 13. Multi-select and drag-and-drop upload one file per Server Action call so each file gets its own pending row, error message and `Dismiss` button; client-side checks and the server share the constants in `validations/media.ts`. Alt text saves on blur or Enter through `updateMediaAlt`; the star button (`aria-label="Set this photo as the cover"`) calls `setCover`; the trash button opens `ConfirmDialog`("Delete this photo?") and calls `deleteMedia`. Uploads and deletions update local state, so no `router.refresh()` is needed. Feature 14: only photos show the star and the alt input (a document shows "Documents appear in the listing's Documents section." instead), and deleting the cover promotes the next photo locally so the badge matches the server. Seeded media rows point at R2 objects that do not exist until real files are uploaded, so their thumbnails fall back to the neutral placeholder.
+- Notes: built as a placeholder in feature 05, made functional in feature 13. Multi-select and drag-and-drop upload one file per Server Action call so each file gets its own pending row, error message and `Dismiss` button; client-side checks and the server share the constants in `validations/media.ts`. Alt text saves on blur or Enter through `updateMediaAlt`; the star button (`aria-label="Set this photo as the cover"`) calls `setCover`; the trash button opens `ConfirmDialog`("Delete this photo?") and calls `deleteMedia`. Uploads and deletions update local state, so no `router.refresh()` is needed. Feature 14: only photos show the star and the alt input (a document shows "Documents appear in the listing's Documents section." instead), and deleting the cover promotes the next photo locally so the badge matches the server. Seeded media rows point at R2 objects that do not exist until real files are uploaded, so their thumbnails are a `PropertyPhoto` and fall back to the neutral placeholder. A drop is ignored while the file limit is reached, and both `Loader2` spinners carry `motion-reduce:animate-none`.
 
 ### ConfirmDialog
 

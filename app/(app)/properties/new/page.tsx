@@ -5,7 +5,7 @@ import { canWriteListings } from "@/lib/auth/guards";
 import { emptyPropertyFormValues } from "@/validations/property";
 
 export default async function NewPropertyPage() {
-  const user = await requirePageUser();
+  const user = await requirePageUser("/properties/new");
   if (!canWriteListings(user.role)) redirect("/dashboard");
 
   return (

@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { propertyStatusValues, type Property } from "@/types/property";
+import {
+  propertyStatusValues,
+  septicValues,
+  waterValues,
+  type Property,
+} from "@/types/property";
 
 const MAX_PRICE_DOLLARS = 1_000_000_000;
 const MAX_COUNT = 50;
@@ -23,6 +28,14 @@ function wholeAmount(label: string, min: number, max: number) {
       `${label} must be between ${min} and ${max}.`,
     )
     .transform(Number);
+}
+
+/** An unanswered select arrives as an empty string and is stored as NULL ("not specified"). */
+function optionalChoice<T extends string>(values: readonly T[], message: string) {
+  return z
+    .string()
+    .refine((value) => value === "" || values.includes(value as T), { message })
+    .transform((value) => (value === "" ? null : (value as T)));
 }
 
 function halfStepAmount(label: string, min: number, max: number) {
@@ -56,6 +69,8 @@ export const propertyInputSchema = z.object({
     .regex(/^[A-Z]{2}$/, "Use a two-letter country code."),
   bedrooms: wholeAmount("Bedrooms", 0, MAX_COUNT),
   bathrooms: halfStepAmount("Bathrooms", 0, MAX_COUNT),
+  septic: optionalChoice(septicValues, "Choose city or tank."),
+  water: optionalChoice(waterValues, "Choose city or well."),
   price: wholeAmount("Price", 0, MAX_PRICE_DOLLARS),
   status: z.enum(propertyStatusValues, { error: "Choose a status." }),
 });
@@ -73,6 +88,8 @@ export const emptyPropertyFormValues: PropertyFormValues = {
   country: "US",
   bedrooms: "",
   bathrooms: "",
+  septic: "",
+  water: "",
   price: "",
   status: "draft",
 };
@@ -87,6 +104,8 @@ export function propertyToFormValues(property: Property): PropertyFormValues {
     country: property.country,
     bedrooms: String(property.bedrooms),
     bathrooms: String(property.bathrooms),
+    septic: property.septic ?? "",
+    water: property.water ?? "",
     price: String(Math.round(property.priceCents / 100)),
     status: property.status,
   };

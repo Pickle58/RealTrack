@@ -2,6 +2,14 @@ export const propertyStatusValues = ["draft", "active", "sold", "off_market"] as
 
 export type PropertyStatus = (typeof propertyStatusValues)[number];
 
+export const septicValues = ["city", "tank"] as const;
+
+export type SepticSystem = (typeof septicValues)[number];
+
+export const waterValues = ["city", "well"] as const;
+
+export type WaterSource = (typeof waterValues)[number];
+
 /** Listing fields only: ownership stays on the rows in `services/`, never in a payload. */
 export type Property = {
   id: string;
@@ -15,6 +23,8 @@ export type Property = {
   longitude: number | null;
   bedrooms: number;
   bathrooms: number;
+  septic: SepticSystem | null;
+  water: WaterSource | null;
   priceCents: number;
   currency: string;
   status: PropertyStatus;

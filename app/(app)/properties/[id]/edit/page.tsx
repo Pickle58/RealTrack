@@ -15,10 +15,11 @@ export default async function EditPropertyPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const user = await requirePageUser();
+  const { id } = await params;
+
+  const user = await requirePageUser(`/properties/${id}/edit`);
   if (!canWriteListings(user.role)) redirect("/dashboard");
 
-  const { id } = await params;
   const detail = await getOwnedProperty(id, ownerScope(user));
 
   if (!detail) notFound();

@@ -220,6 +220,7 @@ Approved dependencies:
 - shadcn/ui components via the CLI (adds Radix packages as needed)
 - `sonner` — toasts
 - `vitest` — unit tests
+- `miniflare` (dev dependency, pinned to the version `@cloudflare/vite-plugin` uses) — boots the in-memory D1/KV/R2 the service tests run against; no Wrangler config involved
 - `typescript`, `eslint`, `@eslint/js`, `typescript-eslint` — type checking and linting (added in feature 01)
 
 Do not install any other packages without updating this list first.

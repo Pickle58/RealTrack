@@ -16,4 +16,6 @@ export type GeocodeResult = {
 
 export interface Geocoder {
   geocode(address: AddressInput): Promise<GeocodeResult | null>;
+  /** False when the provider cannot handle the address at all, so the lookup costs no quota. */
+  supports(address: AddressInput): boolean;
 }

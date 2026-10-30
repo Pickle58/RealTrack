@@ -1,4 +1,5 @@
 import { SignIn, SignUp } from "@clerk/nextjs";
+import { ClientOnly } from "@/components/ui/ClientOnly";
 
 type AuthPageMode = "sign-in" | "sign-up";
 
@@ -28,11 +29,13 @@ export function AuthPageLayout({ mode }: AuthPageLayoutProps) {
           <p className="text-sm leading-6 text-text-secondary">{content.description}</p>
         </div>
 
-        {mode === "sign-in" ? (
-          <SignIn fallbackRedirectUrl="/dashboard" path="/sign-in" routing="path" signUpUrl="/sign-up" />
-        ) : (
-          <SignUp fallbackRedirectUrl="/dashboard" path="/sign-up" routing="path" signInUrl="/sign-in" />
-        )}
+        <ClientOnly>
+          {mode === "sign-in" ? (
+            <SignIn fallbackRedirectUrl="/dashboard" path="/sign-in" routing="path" signUpUrl="/sign-up" />
+          ) : (
+            <SignUp fallbackRedirectUrl="/dashboard" path="/sign-up" routing="path" signInUrl="/sign-in" />
+          )}
+        </ClientOnly>
       </div>
     </div>
   );

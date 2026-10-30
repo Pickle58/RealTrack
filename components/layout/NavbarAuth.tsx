@@ -4,11 +4,12 @@ import Link from "next/link";
 import { Show, useAuth, UserButton } from "@clerk/nextjs";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ClientOnly } from "@/components/ui/ClientOnly";
 import { canWriteListings, parseRole } from "@/lib/auth/roles";
 
 export function NavbarAuth() {
   const { isLoaded, isSignedIn, sessionClaims } = useAuth();
-  const role = parseRole((sessionClaims as { metadata?: { role?: unknown } } | undefined)?.metadata?.role);
+  const role = parseRole(sessionClaims?.metadata?.role);
   const canCreate = isLoaded && isSignedIn === true && canWriteListings(role);
 
   return (
@@ -22,7 +23,9 @@ export function NavbarAuth() {
             </Link>
           </Button>
         ) : null}
-        <UserButton />
+        <ClientOnly>
+          <UserButton />
+        </ClientOnly>
       </Show>
     </div>
   );
