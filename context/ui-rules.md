@@ -48,7 +48,7 @@ Items in order: **Browse**, **Dashboard** (signed-in only). Right side: Clerk-dr
 
 Every content section lives in a card (see tokens). Never use colored card backgrounds; color goes into badges and text.
 
-**Property card:** cover image (4:3, `rounded-lg`, `object-cover`) → status badge (top-left over image) → price → address line 1 → "city, state" in muted text → row of icon facts: bedrooms, bathrooms. Entire card is a link to `/properties/[id]`.
+**Property card:** cover image (4:3, `rounded-lg`, `object-cover`) → status badge (top-left over image) → price → address line 1 → "city, state" in muted text → row of icon facts: bedrooms, bathrooms, lot size. A fact the listing does not carry (bedrooms on vacant land) is omitted rather than shown as zero. Entire card is a link to `/properties/[id]`.
 
 ---
 
@@ -75,7 +75,7 @@ Primary / Secondary / Ghost / Destructive as defined in tokens. One primary butt
 
 ## Form Inputs
 
-Use shadcn `Input`, `Select`, `Textarea` styled per tokens. Every field has a visible `Label`. Inline error text under the field in `text-error`, 12px. Bathrooms input is a number with `step=0.5`. Price input shows a `$` prefix and takes whole dollars.
+Use shadcn `Input`, `Select`, `Textarea` styled per tokens. Every field has a visible `Label`. Inline error text under the field in `text-error`, 12px. Bathrooms input is a number with `step=0.5`. Price input shows a `$` prefix and takes whole dollars. Bedrooms, bathrooms, lot size and electric are optional: a blank field stores NULL and the detail page reads "Not specified". Lot size is a number next to its own unit select (Square feet / Acres).
 
 The property form is a single card with grouped sections: **Address**, **Details**, **Status**. Submit button shows a spinner and is disabled while pending (`useActionState` + `pending`).
 

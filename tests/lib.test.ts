@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { canWriteListings, parseRole } from "@/lib/auth/roles";
-import { formatPrice } from "@/lib/format";
+import { formatLotSize, formatPrice } from "@/lib/format";
 import { propertyDetailKey, propertyListKey, sha256Hex } from "@/lib/kv";
 
 describe("formatPrice", () => {
@@ -27,6 +27,18 @@ describe("formatPrice", () => {
 
   it("falls back to a readable string for a code Intl rejects", () => {
     expect(formatPrice(123_456, "US")).toBe("US 1,235");
+  });
+});
+
+describe("formatLotSize", () => {
+  it("labels square feet with thousands separators and no decimals", () => {
+    expect(formatLotSize(10890, "sqft")).toBe("10,890 sq ft");
+    expect(formatLotSize(10890.6, "sqft")).toBe("10,891 sq ft");
+  });
+
+  it("keeps the decimals an acreage needs", () => {
+    expect(formatLotSize(0.25, "acres")).toBe("0.25 ac");
+    expect(formatLotSize(12.5, "acres")).toBe("12.5 ac");
   });
 });
 

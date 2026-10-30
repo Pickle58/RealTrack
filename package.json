@@ -13,8 +13,8 @@
     "test": "vitest run",
     "deploy": "cf deploy",
     "db:generate": "drizzle-kit generate",
-    "db:migrate:local": "cf d1 migrations apply <DATABASE_ID> --local --dir migrations",
-    "db:migrate:remote": "cf d1 migrations apply <DATABASE_ID> --dir migrations"
+    "db:migrate:local": "cf d1 migrations apply 71251ab2-9793-4c63-b7a9-b566c0703a6b --local --dir migrations",
+    "db:migrate:remote": "cf d1 migrations apply 71251ab2-9793-4c63-b7a9-b566c0703a6b --dir migrations"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.9.21",

@@ -278,8 +278,11 @@ export const propertyInputSchema = z.object({
   stateProvince: z.string().trim().min(1).max(100),
   postalCode: z.string().trim().min(2).max(20),
   country: z.string().trim().length(2).default("US"),
-  bedrooms: z.coerce.number().int().min(0).max(50),
-  bathrooms: z.coerce.number().min(0).max(50).multipleOf(0.5),
+  bedrooms: z.coerce.number().int().min(0).max(50).nullable(), // blank -> NULL (vacant land, uncounted)
+  bathrooms: z.coerce.number().min(0).max(50).multipleOf(0.5).nullable(),
+  lotSize: z.coerce.number().min(0).nullable(),
+  lotSizeUnit: z.enum(["sqft", "acres"]).nullable(),           // required whenever lotSize is set
+  electric: z.enum(["at_property", "available", "none"]).nullable(),
   price: z.coerce.number().min(0),            // dollars in the form, converted to cents in the service
   status: z.enum(["draft", "active", "sold", "off_market"]),
 });

@@ -145,10 +145,10 @@ Installed with the shadcn CLI (style `new-york`, base colour `neutral`, CSS vari
 
 - Path: `components/properties/PropertyFacts.tsx`
 - Type: server
-- Props: `{ bedrooms: number; bathrooms: number; septic: SepticSystem | null; water: WaterSource | null }`
+- Props: `{ bedrooms: number | null; bathrooms: number | null; lotSize: number | null; lotSizeUnit: LotSizeUnit | null; electric: ElectricSupply | null; septic: SepticSystem | null; water: WaterSource | null }`
 - Classes: `dl` with `grid grid-cols-2 gap-4`; each fact `flex flex-col gap-1`; label `text-xs font-medium text-text-secondary`; value `inline-flex items-center gap-2 text-sm font-medium text-text-primary` with a `size-4 text-text-muted` icon
 - Used in: `/properties/[id]`, inside the details card
-- Notes: septic reads "City sewer" / "Septic tank" (`Waves` icon) and water reads "City water" / "Well" (`Droplet` icon); a NULL column shows "Not specified" instead of inventing a utility
+- Notes: six facts in order bedrooms, bathrooms, lot size, electric, septic, water. Bedrooms (`BedDouble`) and bathrooms (`Bath`) print the number or "Not specified"; lot size reads through `formatLotSize` (`Ruler`), electric reads "At property" / "Available" / "None" (`Zap`), septic "City sewer" / "Septic tank" (`Waves`) and water "City water" / "Well" (`Droplet`). A NULL column always shows "Not specified" instead of inventing a value.
 
 ### PropertyGallery
 

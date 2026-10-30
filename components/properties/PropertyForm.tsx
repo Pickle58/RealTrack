@@ -19,7 +19,11 @@ import { Input } from "@/components/ui/input";import { Select,
 } from "@/components/ui/select";
 import type { ActionResult } from "@/lib/action-result";
 import {
+  electricValues,
+  lotSizeUnitValues,
   propertyStatusValues,
+  type ElectricSupply,
+  type LotSizeUnit,
   type PropertyStatus,
   type SepticSystem,
   type WaterSource,
@@ -39,6 +43,12 @@ const statusLabels: Record<PropertyStatus, string> = {
 
 const septicLabels: Record<SepticSystem, string> = { city: "City", tank: "Tank" };
 const waterLabels: Record<WaterSource, string> = { city: "City", well: "Well" };
+const electricLabels: Record<ElectricSupply, string> = {
+  at_property: "At property",
+  available: "Available",
+  none: "None",
+};
+const lotSizeUnitLabels: Record<LotSizeUnit, string> = { sqft: "Square feet", acres: "Acres" };
 
 /** Radix Select rejects an empty item value, so "not specified" needs a sentinel. */
 const NOT_SPECIFIED = "not_specified";
@@ -202,6 +212,85 @@ export function PropertyForm({
                 type="number"
                 {...register("bathrooms")}
                 {...fieldProps("bathrooms", true)}
+              />
+            </FormField>
+
+            <FormField
+              error={errors.lotSize?.message}
+              hint="Acres or square feet; leave blank if unknown."
+              id="lotSize"
+              label="Lot size"
+            >
+              <Input
+                inputMode="decimal"
+                min={0}
+                placeholder="10,890"
+                step="any"
+                type="number"
+                {...register("lotSize")}
+                {...fieldProps("lotSize", true)}
+              />
+            </FormField>
+
+            <FormField
+              error={errors.lotSizeUnit?.message}
+              id="lotSizeUnit"
+              label="Lot size unit"
+            >
+              <Controller
+                control={control}
+                name="lotSizeUnit"
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                    <SelectTrigger
+                      className="w-full"
+                      onBlur={field.onBlur}
+                      ref={field.ref}
+                      {...fieldProps("lotSizeUnit")}
+                    >
+                      <SelectValue placeholder="Choose square feet or acres" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {lotSizeUnitValues.map((unit) => (
+                        <SelectItem key={unit} value={unit}>
+                          {lotSizeUnitLabels[unit]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </FormField>
+
+            <FormField error={errors.electric?.message} id="electric" label="Electric">
+              <Controller
+                control={control}
+                name="electric"
+                render={({ field }) => (
+                  <Select
+                    onValueChange={(value) =>
+                      field.onChange(value === NOT_SPECIFIED ? "" : value)
+                    }
+                    value={field.value || NOT_SPECIFIED}
+                  >
+                    <SelectTrigger
+                      className="w-full"
+                      onBlur={field.onBlur}
+                      ref={field.ref}
+                      {...fieldProps("electric")}
+                    >
+                      <SelectValue placeholder="Choose electric service" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NOT_SPECIFIED}>Not specified</SelectItem>
+                      {electricValues.map((value) => (
+                        <SelectItem key={value} value={value}>
+                          {electricLabels[value]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               />
             </FormField>
 

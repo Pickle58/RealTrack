@@ -31,6 +31,9 @@ const validFormValues = {
   country: "us",
   bedrooms: "4",
   bathrooms: "2.5",
+  lotSize: "10890",
+  lotSizeUnit: "sqft",
+  electric: "at_property",
   septic: "tank",
   water: "well",
   price: "1250000",
@@ -46,6 +49,9 @@ const validPropertyInput: PropertyInput = {
   country: "US",
   bedrooms: 4,
   bathrooms: 2.5,
+  lotSize: 10890,
+  lotSizeUnit: "sqft",
+  electric: "at_property",
   septic: "tank",
   water: "well",
   price: 1_250_000,
@@ -70,6 +76,9 @@ describe("propertyInputSchema", () => {
       country: "US",
       bedrooms: 4,
       bathrooms: 2.5,
+      lotSize: 10890,
+      lotSizeUnit: "sqft",
+      electric: "at_property",
       septic: "tank",
       water: "well",
       price: 1_250_000,
@@ -149,9 +158,78 @@ describe("propertyInputSchema", () => {
     expect(firstIssueMessage({ ...validFormValues, status: "pending" })).toBe("Choose a status.");
   });
 
-  it("treats empty numeric fields as missing, not as zero", () => {
-    expect(firstIssueMessage({ ...validFormValues, bedrooms: "" })).toBe("Bedrooms is required.");
+  it("keeps price required and treats empty bedrooms, bathrooms and lot size as not specified", () => {
+    const parsed = propertyInputSchema.parse({
+      ...validFormValues,
+      bedrooms: "",
+      bathrooms: "  ",
+      lotSize: "",
+      lotSizeUnit: "",
+    });
+
+    expect(parsed).toMatchObject({ bedrooms: null, bathrooms: null, lotSize: null, lotSizeUnit: null });
     expect(firstIssueMessage({ ...validFormValues, price: "   " })).toBe("Price is required.");
+  });
+
+  it("accepts decimal lot sizes and only the two units", () => {
+    expect(
+      propertyInputSchema.parse({ ...validFormValues, lotSize: "0.75", lotSizeUnit: "acres" }),
+    ).toMatchObject({ lotSize: 0.75, lotSizeUnit: "acres" });
+    expect(firstIssueMessage({ ...validFormValues, lotSize: "-1" })).toBe(
+      "Lot size must be between 0 and 100000000.",
+    );
+    expect(firstIssueMessage({ ...validFormValues, lotSize: "1.5", lotSizeUnit: "hectares" })).toBe(
+      "Choose square feet or acres.",
+    );
+    expect(
+      propertyInputSchema.safeParse({ ...validFormValues, lotSize: "2", lotSizeUnit: "" }).error
+        ?.issues[0]?.message,
+    ).toBe("Choose square feet or acres.");
+  });
+
+  it("accepts the three electric choices, with blank meaning not specified", () => {
+    for (const electric of ["at_property", "available", "none"]) {
+      expect(propertyInputSchema.parse({ ...validFormValues, electric }).electric).toBe(electric);
+    }
+    expect(propertyInputSchema.parse({ ...validFormValues, electric: "" }).electric).toBeNull();
+    expect(firstIssueMessage({ ...validFormValues, electric: "solar" })).toBe(
+      "Choose at property, available or none.",
+    );
+  });
+
+  it("converts a stored property without bedrooms back into empty form strings", () => {
+    const vacantLand: Property = {
+      id: "vacant",
+      addressLine1: "0 County Road 12",
+      addressLine2: null,
+      city: "Marfa",
+      stateProvince: "TX",
+      postalCode: "79843",
+      country: "US",
+      latitude: null,
+      longitude: null,
+      bedrooms: null,
+      bathrooms: null,
+      lotSize: 12.5,
+      lotSizeUnit: "acres",
+      electric: "available",
+      septic: null,
+      water: null,
+      priceCents: 95_000_00,
+      currency: "USD",
+      status: "active",
+      createdAt: 0,
+      updatedAt: 0,
+    };
+
+    expect(propertyToFormValues(vacantLand)).toMatchObject({
+      bedrooms: "",
+      bathrooms: "",
+      lotSize: "12.5",
+      lotSizeUnit: "acres",
+      electric: "available",
+      price: "95000",
+    });
   });
 
   it("converts a stored property back into form strings, with price in dollars", () => {
@@ -167,6 +245,9 @@ describe("propertyInputSchema", () => {
       longitude: -80.2,
       bedrooms: 4,
       bathrooms: 2.5,
+      lotSize: 10890,
+      lotSizeUnit: "sqft",
+      electric: "at_property",
       septic: "tank",
       water: "well",
       priceCents: 125_000_050,
@@ -186,8 +267,16 @@ describe("propertyInputSchema", () => {
     });
   });
 
-  it("starts a new form on a draft with a US country and no numeric values", () => {
-    expect(emptyPropertyFormValues).toMatchObject({ country: "US", status: "draft", price: "", bedrooms: "" });
+  it("starts a new form on a draft with a US country, square feet and no numeric values", () => {
+    expect(emptyPropertyFormValues).toMatchObject({
+      country: "US",
+      status: "draft",
+      price: "",
+      bedrooms: "",
+      lotSize: "",
+      lotSizeUnit: "sqft",
+      electric: "",
+    });
   });
 
   it("round-trips the parsed input back through the form values", () => {

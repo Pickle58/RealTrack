@@ -1,6 +1,12 @@
 import { sql } from "drizzle-orm";
 import { check, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { propertyStatusValues, septicValues, waterValues } from "@/types/property";
+import {
+  electricValues,
+  lotSizeUnitValues,
+  propertyStatusValues,
+  septicValues,
+  waterValues,
+} from "@/types/property";
 
 const NOW_MS = sql`(unixepoch() * 1000)`;
 
@@ -17,8 +23,11 @@ export const properties = sqliteTable(
     country: text("country").notNull().default("US"),
     latitude: real("latitude"),
     longitude: real("longitude"),
-    bedrooms: integer("bedrooms").notNull(),
-    bathrooms: real("bathrooms").notNull(),
+    bedrooms: integer("bedrooms"),
+    bathrooms: real("bathrooms"),
+    lotSize: real("lot_size"),
+    lotSizeUnit: text("lot_size_unit", { enum: lotSizeUnitValues }),
+    electric: text("electric", { enum: electricValues }),
     septic: text("septic", { enum: septicValues }),
     water: text("water", { enum: waterValues }),
     priceCents: integer("price_cents").notNull(),
@@ -35,6 +44,8 @@ export const properties = sqliteTable(
     index("properties_bedrooms_idx").on(t.bedrooms),
     check("properties_bedrooms_non_negative", sql`${t.bedrooms} >= 0`),
     check("properties_bathrooms_non_negative", sql`${t.bathrooms} >= 0`),
+    check("properties_lot_size_non_negative", sql`${t.lotSize} >= 0`),
+    check("properties_lot_size_unit_set", sql`${t.lotSize} IS NULL OR ${t.lotSizeUnit} IS NOT NULL`),
     check("properties_price_cents_non_negative", sql`${t.priceCents} >= 0`),
   ],
 );
