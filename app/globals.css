@@ -113,6 +113,11 @@
 }
 
 @layer base {
+  /* Stop iOS Safari from inflating body text in landscape. */
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
     background-color: var(--color-background);
     color: var(--color-text-primary);
