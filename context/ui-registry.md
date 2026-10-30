@@ -56,6 +56,15 @@ After building any component, record: name, file path, props, and exact classes 
 - Used in: `AuthPageLayout` (around `<SignIn>` / `<SignUp>`) and `NavbarAuth` (around `<UserButton>`)
 - Notes: Clerk widgets render nothing until clerk-js reports `loaded`. If clerk-js wins the race against hydration the first client render contains the widget while the server output was empty, and React reports a hydration mismatch. This defers the subtree until a `useEffect` flag flips, so the server render and first client render are identical. Wrap widgets only, never data.
 
+### RouteError
+
+- Path: `components/layout/RouteError.tsx`
+- Type: client (`"use client"`; renders inside each route group's `error.tsx`)
+- Props: `{ error: Error & { digest?: string }; reset: () => void }`
+- Classes: delegates to `EmptyState`; actions wrap in `flex flex-wrap items-center justify-center gap-2`; primary **Try again** (`RotateCcw` icon), secondary **Browse listings** (`Button asChild variant="secondary"`)
+- Used in: `app/(public)/error.tsx`, `app/(detail)/error.tsx`, `app/(app)/error.tsx`, `app/(auth)/error.tsx`
+- Notes: the friendly page for a dependency outage (D1, KV, Clerk) — one panel, no half-rendered layout. Logs `error.name` and `error.digest` only, never `error.message` (a failed query can quote row values). **Try again** calls `window.location.reload()` because `reset()` alone does not re-run the failed server render in vinext 1.3.1; `reset` is still accepted to satisfy the Next `error.tsx` contract.
+
 ### PageShell
 
 - Path: `components/layout/PageShell.tsx`
@@ -118,10 +127,10 @@ Installed with the shadcn CLI (style `new-york`, base colour `neutral`, CSS vari
 
 - Path: `components/properties/PropertyImagePlaceholder.tsx`
 - Type: server
-- Props: `{ className?: string }`
-- Classes: `flex items-center justify-center bg-surface-secondary` with a `size-8 text-text-muted` `Home` icon and `sr-only` "No photo available"
+- Props: `{ className?: string; alt?: string }`
+- Classes: `flex items-center justify-center bg-surface-secondary` with a `size-8 text-text-muted` `Home` icon and an `sr-only` description
 - Used in: `PropertyCard` (no cover), `PropertyGallery` (no images), `PropertyPhoto` (failed image)
-- Notes: the neutral block behind every R2-outage / missing-object case (feature 14); sizing comes from the caller
+- Notes: the neutral block behind every R2-outage / missing-object case (feature 14); sizing comes from the caller. `PropertyPhoto` passes its `alt` through, so a failed image keeps its description and the `sr-only` text falls back to "No photo available" when there is no alt text
 
 ### PropertyFacts
 

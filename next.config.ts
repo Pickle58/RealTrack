@@ -6,17 +6,20 @@ const isDevelopment = process.env.NODE_ENV !== "production";
  * Clerk's script/frame/connect/image hosts, Cloudflare Turnstile, and the Google Fonts hosts
  * vinext needs because `next/font/google` loads from the CDN at runtime. Clerk's abuse and fraud
  * protection hosts only answer on non-443 ports, hence the trailing `:*`.
- * Feature 19 adds the production Frontend API host (e.g. `https://clerk.example.com`).
+ * The production Frontend API host is listed explicitly: a production instance on
+ * `clerk.<domain>` is not covered by the `*.clerk.com` / `*.clerk.accounts.dev` wildcards.
  */
+const productionClerkHost = "https://clerk.realtrack.elderpickle.com";
+
 const contentSecurityPolicy = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""} https://*.clerk.accounts.dev https://*.clerk.com https://challenges.cloudflare.com https://*.protect.clerk.com`,
-  `connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://clerk-telemetry.com https://*.clerk-telemetry.com https://challenges.cloudflare.com https://*.protect.clerk.com:*${isDevelopment ? " ws://localhost:* ws://127.0.0.1:*" : ""}`,
-  "img-src 'self' data: blob: https://img.clerk.com https://images.clerk.dev https://*.clerk.accounts.dev https://*.clerk.com",
+  `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""} https://*.clerk.accounts.dev https://*.clerk.com ${productionClerkHost} https://challenges.cloudflare.com https://*.protect.clerk.com`,
+  `connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com ${productionClerkHost} https://clerk-telemetry.com https://*.clerk-telemetry.com https://challenges.cloudflare.com https://*.protect.clerk.com:*${isDevelopment ? " ws://localhost:* ws://127.0.0.1:*" : ""}`,
+  `img-src 'self' data: blob: https://img.clerk.com https://images.clerk.dev https://*.clerk.accounts.dev https://*.clerk.com ${productionClerkHost}`,
   "font-src 'self' data: https://fonts.gstatic.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "worker-src 'self' blob:",
-  "frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://challenges.cloudflare.com https://*.protect.clerk.com",
+  `frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com ${productionClerkHost} https://challenges.cloudflare.com https://*.protect.clerk.com`,
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

@@ -42,23 +42,32 @@ export async function startTestWorker(): Promise<TestWorker> {
     ],
   });
 
-  const db = (await miniflare.getD1Database("DB")) as unknown as D1Database;
-  const kv = (await miniflare.getKVNamespace("KV")) as unknown as KVNamespace;
-  const r2 = (await miniflare.getR2Bucket("MEDIA")) as unknown as R2Bucket;
+  try {
+    const db = (await miniflare.getD1Database("DB")) as unknown as D1Database;
+    const kv = (await miniflare.getKVNamespace("KV")) as unknown as KVNamespace;
+    const r2 = (await miniflare.getR2Bucket("MEDIA")) as unknown as R2Bucket;
 
-  await applyMigrations(db);
-  useWorkerEnv({ DB: db, KV: kv, MEDIA: r2 });
+    await applyMigrations(db);
+    useWorkerEnv({ DB: db, KV: kv, MEDIA: r2 });
 
-  return {
-    miniflare,
-    db,
-    kv,
-    r2,
-    dispose: async () => {
-      clearWorkerEnv();
-      await miniflare.dispose();
-    },
-  };
+    return {
+      miniflare,
+      db,
+      kv,
+      r2,
+      dispose: async () => {
+        clearWorkerEnv();
+        await miniflare.dispose();
+      },
+    };
+  } catch (error) {
+    // A half-started worker would leave its workerd process and env proxy behind.
+    clearWorkerEnv();
+    await miniflare.dispose().catch((disposeError) => {
+      console.error("[tests/support/worker/dispose]", disposeError);
+    });
+    throw error;
+  }
 }
 
 /** Applies the committed Drizzle migrations, so the tests run against the real schema. */
@@ -78,8 +87,13 @@ export async function resetTestWorker(worker: TestWorker): Promise<void> {
   await worker.db.prepare("DELETE FROM property_media").run();
   await worker.db.prepare("DELETE FROM properties").run();
 
-  const keys = await worker.kv.list();
-  await Promise.all(keys.keys.map((key) => worker.kv.delete(key.name)));
+  // KV list is paginated, so every page has to be drained before the cache is empty.
+  let cursor: string | undefined;
+  do {
+    const page = await worker.kv.list(cursor === undefined ? {} : { cursor });
+    await Promise.all(page.keys.map((key) => worker.kv.delete(key.name)));
+    cursor = page.list_complete ? undefined : page.cursor;
+  } while (cursor !== undefined);
 
   let objects = await worker.r2.list();
   while (objects.objects.length > 0) {

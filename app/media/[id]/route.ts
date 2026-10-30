@@ -16,7 +16,15 @@ export async function GET(
   const { id } = await params;
   if (!UUID.test(id)) return notFound();
 
-  const target = await getForServing(id, getOptionalUser);
+  // A D1 outage must not surface as an unhandled error on an <img> request: report it as
+  // temporarily unavailable, which the UI already renders as the photo placeholder.
+  let target: Awaited<ReturnType<typeof getForServing>>;
+  try {
+    target = await getForServing(id, getOptionalUser);
+  } catch (error) {
+    console.error("[media/route] lookup failed", error);
+    return new Response("Media is unavailable", { status: 503 });
+  }
   if (!target) return notFound();
 
   let object: R2ObjectBody | null;

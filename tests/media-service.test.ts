@@ -1,4 +1,19 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+/** Flipped by the R2-outage case; every other case keeps the real bucket. */
+const { r2Failure } = vi.hoisted(() => ({ r2Failure: { put: false } }));
+
+vi.mock("@/lib/r2", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/r2")>();
+  return {
+    ...actual,
+    putMedia: async (key: string, body: ArrayBuffer, contentType: string) => {
+      if (r2Failure.put) throw new Error("MEDIA binding is unavailable");
+      return actual.putMedia(key, body, contentType);
+    },
+  };
+});
+
 import { MediaError, getForServing, list, remove, setCover, updateAlt, upload } from "@/services/media";
 import type { MediaViewer } from "@/services/media";
 import { MAX_MEDIA_BYTES, MAX_MEDIA_PER_PROPERTY } from "@/validations/media";
@@ -37,6 +52,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
+  r2Failure.put = false;
   await resetTestWorker(worker);
   propertyId = await seedProperty(worker, { id: "property-a", ownerId: AGENT_A.id });
 });
@@ -118,6 +134,37 @@ describe("upload", () => {
 
     expect(media.propertyId).toBe(propertyId);
     expect(await list(propertyId, scopeOf(AGENT_A))).toHaveLength(1);
+  });
+
+  it("reports a storage failure when R2 is down, and stores nothing", async () => {
+    r2Failure.put = true;
+
+    expect(await errorCode(upload(propertyId, scopeOf(AGENT_A), file("photo.png", "image/png")))).toBe(
+      "storage_failed",
+    );
+
+    r2Failure.put = false;
+    expect((await worker.r2.list({ prefix: `properties/${propertyId}/media/` })).objects).toEqual([]);
+    expect(await list(propertyId, scopeOf(AGENT_A))).toEqual([]);
+  });
+
+  it("removes the stored object again when the row insert fails", async () => {
+    await worker.db
+      .prepare(
+        "CREATE TRIGGER fail_media_insert BEFORE INSERT ON property_media BEGIN SELECT RAISE(ABORT, 'simulated insert failure'); END",
+      )
+      .run();
+
+    try {
+      expect(await errorCode(upload(propertyId, scopeOf(AGENT_A), file("photo.png", "image/png")))).toBe(
+        "storage_failed",
+      );
+    } finally {
+      await worker.db.prepare("DROP TRIGGER fail_media_insert").run();
+    }
+
+    expect((await worker.r2.list({ prefix: `properties/${propertyId}/media/` })).objects).toEqual([]);
+    expect(await list(propertyId, scopeOf(AGENT_A))).toEqual([]);
   });
 });
 

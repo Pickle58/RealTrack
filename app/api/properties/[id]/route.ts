@@ -5,7 +5,17 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id } = await params;
-  const detail = await getById(id, null);
+
+  let detail: Awaited<ReturnType<typeof getById>>;
+  try {
+    detail = await getById(id, null);
+  } catch (error) {
+    console.error("[app/api/properties/[id]/GET]", error);
+    return Response.json(
+      { success: false, error: "Properties are temporarily unavailable" },
+      { status: 503 },
+    );
+  }
 
   if (!detail) {
     return Response.json({ success: false, error: "Property not found" }, { status: 404 });

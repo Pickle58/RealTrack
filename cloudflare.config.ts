@@ -6,6 +6,7 @@ export default defineConfig({
     entrypoint: "vinext/server/fetch-handler",
     compatibilityDate: "2026-10-27",
     compatibilityFlags: ["nodejs_compat"],
+    domains: ["realtrack.elderpickle.com"],
     assets: {
       htmlHandling: "none",
       notFoundHandling: "none",
