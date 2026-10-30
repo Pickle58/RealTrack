@@ -13,14 +13,19 @@ function hasSession(request: NextRequest): boolean {
 }
 
 export default async function proxy(request: NextRequest, event: NextFetchEvent) {
+  // Clerk answers every request with its own response: a redirect for the handshake or
+  // auth.protect(), or a next() continuation that may carry a refreshed session cookie.
+  const response = await clerk(request, event);
+
   // A handshake or protect() redirect is a Response of its own; leave it untouched.
-  const handshake = await clerk(request, event);
-  if (handshake) return handshake;
+  if (response instanceof Response && response.headers.has("location")) return response;
 
-  if (!hasSession(request)) return;
+  // Label Clerk's own next() response rather than minting a new one, so its session
+  // cookies and headers survive while authenticated responses stay uncacheable.
+  if (hasSession(request) && response instanceof NextResponse) {
+    response.headers.set("Cache-Control", "private, no-store");
+  }
 
-  const response = NextResponse.next();
-  response.headers.set("Cache-Control", "private, no-store");
   return response;
 }
 

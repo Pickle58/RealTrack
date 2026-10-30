@@ -9,7 +9,10 @@ export async function GET(request: Request): Promise<Response> {
     return Response.json({ success: true, data });
   } catch (error) {
     // Reported without detail: the failure table keeps raw query/binding errors off the wire.
-    console.error("[app/api/properties/GET]", error);
+    console.error(
+      "[app/api/properties/GET]",
+      error instanceof Error ? error.name : "UnknownError",
+    );
     return Response.json(
       { success: false, error: "Properties are temporarily unavailable" },
       { status: 503 },
