@@ -21,6 +21,7 @@ export function PropertyPhoto({
   // An image can fail before hydration, when onError is not attached yet.
   useEffect(() => {
     const image = ref.current;
+    setFailed(false);
     if (image?.complete && image.naturalWidth === 0) setFailed(true);
   }, [src]);
 

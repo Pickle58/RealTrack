@@ -293,6 +293,20 @@ export const propertyInputSchema = z.object({
 
 ---
 
+## Vitest and Miniflare (tests)
+
+`pnpm test` is `vitest run` over `vitest.config.ts`; test files live in `tests/` and use `tests/support/` for the harness.
+
+- Tests run in **Node**, not workerd. Two aliases make the server modules importable there: `@/` → the repo root, and `cloudflare:workers` → `tests/support/cloudflare-workers.ts`, a proxy over the current test environment. `lib/cloudflare.ts` is the only reader of that module, so the alias is enough for `lib/db`, `lib/kv`, `lib/r2` and everything above them.
+- `@cloudflare/vitest-pool-workers` is deliberately not used: it needs a Wrangler config, which this project does not have. Each test file boots its own in-memory **Miniflare** instead (`tests/support/worker.ts`): D1, KV and R2 bindings named `DB`, `KV` and `MEDIA` with the committed migrations applied, and `resetTestWorker` empties the tables, the KV keys and the bucket between cases.
+- **Miniflare 5 beta takes the worker-array options, not the v3/v4 flat ones.** `{ d1Databases, kvNamespaces, r2Buckets, script, compatibilityDate }` fails with a Zod "unrecognized keys" error; the shape is `{ workers: [{ config: { name, compatibilityDate, compatibilityFlags, manifest: { mainModule, modules }, env: { DB: { type: "d1" }, KV: { type: "kv" }, MEDIA: { type: "r2" } } } }] }`. `getD1Database` / `getKVNamespace` / `getR2Bucket` then return workerd proxies, and Drizzle's `d1` driver (including `db.batch`) works against them unchanged.
+- Mock the geocoder with `vi.mock("@/services/geocoding")` in service tests so no case reaches geocod.io.
+- Auth cases mock the Clerk server module with `vi.hoisted` (a `vi.mock` factory is hoisted above ordinary constants) and feed `sessionClaims.metadata.role`; the pure helpers in `lib/auth/roles.ts` need no mock. The list cache key is asserted through `search()` and `worker.kv.list({ prefix })` rather than by exporting the private key builder.
+- The documented manual pass lives in `context/smoke-checklist.md`: sign up → create → upload → public view → delete, plus the role/IDOR and rate-limit checks.
+- `package.json` pins `vinext`, `cf`, `@types/node` and `@cloudflare/vite-plugin` to exact versions on purpose: a dependency written as `latest` is re-resolved by every `pnpm add`/`pnpm install`, which once pulled a new vinext in while adding a dev dependency.
+
+---
+
 ## Clerk (`@clerk/nextjs`)
 
 Authentication, sessions, and user identity. Set up with the Clerk CLI in build-plan feature 10.
@@ -360,11 +374,12 @@ The navbar shows sign-in/sign-up buttons when signed out and `UserButton` when s
 3. Type the claims:
 
 ```typescript
-// types/globals.d.ts
+// types/globals.d.ts — shipped in feature 10
 export {};
 declare global {
   interface CustomJwtSessionClaims {
-    metadata: { role?: "viewer" | "agent" | "admin" };
+    // `unknown` because it is a claim, not a trusted type: parseRole narrows it.
+    metadata?: { role?: unknown };
   }
 }
 ```
@@ -385,6 +400,15 @@ export async function getFreshRole(userId: string): Promise<Role> {
 - A first `cf deploy` of a Worker with a declared secret needs the value up front: `cf deploy --secrets-file .dev.vars` (the file is already in `SECRET_NAME=value` form and is gitignored).
 - Clerk's keyless mode may be used for the first local run; link a real Clerk application before any deploy.
 - Development and production are separate Clerk instances: keys, session-token customization, and role metadata must be set up again for production.
+
+### Verified behaviour (2026-10-29, feature 10)
+
+- **Sign-up/sign-in with a `+clerk_test` address:** Clerk accepts the code `424242` for both email verification and client-trust verification, so no mailbox is involved. A UI sign-up is: email + password → `/sign-up/verify-email-address` → code → `/dashboard`.
+- **Client trust (`needs_client_trust`):** a `signIn.create({ identifier, password })` from a fresh browser profile returns `needs_client_trust` instead of `complete`. Send a code with `prepareFirstFactor({ strategy: "email_code", emailAddressId })` and then `attemptFirstFactor({ strategy: "email_code", code: "424242" })` — calling `attemptFirstFactor` before `prepareFirstFactor` fails with "You need to send a verification code before attempting to verify."
+- **Setting a test password from the CLI:** `clerk api /users/{id} -X PATCH -d '{"password":"…"}'`. Procedural passwords must be **15 characters or more** (`form_password_length_too_short`), even when the sign-up form accepts fewer.
+- **Session tokens live 60 s** on this instance, so an idle tab cycles through `https://<instance>.clerk.accounts.dev/v1/client/handshake?...&__clerk_hs_reason=session-token-expired...` URLs and a tab can be mid-handshake at any moment. A `curl` check must send `Accept: text/html` and keep a cookie jar (`-c/-b`), or every document request looks like a 307 to Clerk.
+- **`auth.protect()` with no argument builds an `https://` sign-in URL in local dev** (Clerk resolves the env sign-in URL against an origin it reports as `https://`), which the plain-http dev server cannot serve. Pass a relative `unauthenticatedUrl: "/sign-in?redirect_url=<page>"` instead — see `requirePageUser` in `lib/auth/current-user.ts`.
+- **Wrap Clerk widgets in `ClientOnly`.** They render nothing until clerk-js reports `loaded`; if clerk-js is ready before React hydrates, the first client render differs from the server output and React reports a hydration mismatch on the auth pages and the navbar.
 
 **Rules:**
 

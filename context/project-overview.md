@@ -47,7 +47,7 @@ Top navbar only. Left: logo "Real Estate Tracker". Links in order: **Browse** (`
 ### 2. Create a property (agent)
 
 1. Agent signs up or signs in through Clerk, clicks **Add property**.
-2. Fills the form (address, bedrooms, bathrooms, price, status).
+2. Fills the form (address, bedrooms, bathrooms, septic, water, price, status).
 3. Server Action validates input → geocodes the address (cache first) → inserts into D1 → emits `property.created` → redirects to the edit page to add media.
 4. If geocoding fails the property still saves with null coordinates and a visible "Location not verified" note.
 

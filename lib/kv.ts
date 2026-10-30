@@ -37,13 +37,17 @@ export async function cacheDelete(key: string): Promise<void> {
   }
 }
 
-/** The version is the only key without a TTL; a missing or unreadable one falls back to `0`. */
+/**
+ * The version is the only key without a TTL. A missing key is the starting namespace (`0`);
+ * an unreadable one yields a per-call value, so the caller misses the list cache rather than
+ * reading a version that may have been replaced.
+ */
 export async function getListVersion(): Promise<string> {
   try {
     return (await getEnv().KV.get(LIST_VERSION_KEY)) ?? "0";
   } catch (error) {
     console.error("[kv/getListVersion]", error);
-    return "0";
+    return crypto.randomUUID();
   }
 }
 

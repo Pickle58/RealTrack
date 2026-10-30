@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PropertyPhoto } from "@/components/properties/PropertyPhoto";
 import { formatFileSize } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { MediaItem } from "@/types/media";
@@ -127,16 +128,18 @@ export function MediaUploader({
         toast.error(result.error);
         return;
       }
-      const remaining = items.filter((entry) => entry.id !== item.id);
-      // The server promotes the next photo when the cover goes; the list is ordered cover-first.
-      const promoted = item.isCover
-        ? remaining.find((entry) => isImageMedia(entry.mimeType))
-        : undefined;
-      setItems(
-        promoted
+      setItems((prev) => {
+        const removed = prev.find((entry) => entry.id === item.id);
+        const remaining = prev.filter((entry) => entry.id !== item.id);
+        // The server promotes the next photo when the cover goes; the list is ordered cover-first.
+        const promoted =
+          removed?.isCover === true
+            ? remaining.find((entry) => isImageMedia(entry.mimeType))
+            : undefined;
+        return promoted
           ? [{ ...promoted, isCover: true }, ...remaining.filter((entry) => entry.id !== promoted.id)]
-          : remaining,
-      );
+          : remaining;
+      });
     } catch (error) {
       console.error("[MediaUploader/deleteMedia]", error);
       toast.error("Could not delete the file. Please try again.");
@@ -168,6 +171,7 @@ export function MediaUploader({
         onDrop={(event) => {
           event.preventDefault();
           setDragging(false);
+          if (atLimit) return;
           void handleFiles(Array.from(event.dataTransfer.files));
         }}
       >
@@ -212,7 +216,7 @@ export function MediaUploader({
             >
               <div className="flex min-w-0 items-center gap-2">
                 {entry.pending ? (
-                  <Loader2 aria-hidden className="size-4 animate-spin text-text-muted" />
+                  <Loader2 aria-hidden className="size-4 animate-spin text-text-muted motion-reduce:animate-none" />
                 ) : (
                   <FileText aria-hidden className="size-4 text-text-muted" />
                 )}
@@ -252,7 +256,7 @@ export function MediaUploader({
             >
               <div className="flex min-w-0 flex-1 items-center gap-3">
                 {isImageMedia(item.mimeType) ? (
-                  <img
+                  <PropertyPhoto
                     alt={item.altText ?? ""}
                     className="size-16 shrink-0 rounded-md border border-border object-cover"
                     src={item.src}
@@ -316,7 +320,7 @@ export function MediaUploader({
                     variant="ghost"
                   >
                     {busyId === item.id ? (
-                      <Loader2 aria-hidden className="animate-spin" />
+                      <Loader2 aria-hidden className="animate-spin motion-reduce:animate-none" />
                     ) : (
                       <Star aria-hidden />
                     )}

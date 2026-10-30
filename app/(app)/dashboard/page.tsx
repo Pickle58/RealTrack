@@ -8,7 +8,7 @@ import { canWriteListings, ownerScope } from "@/lib/auth/guards";
 import { listByOwner } from "@/services/properties";
 
 export default async function DashboardPage() {
-  const user = await requirePageUser();
+  const user = await requirePageUser("/dashboard");
   const canCreate = canWriteListings(user.role);
 
   const items = await listByOwner(ownerScope(user));

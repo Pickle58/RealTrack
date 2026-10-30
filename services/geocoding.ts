@@ -40,6 +40,10 @@ export async function geocodeAddress(address: AddressInput, userId: string): Pro
       return { location: cached, cached: true, rateLimited: false };
     }
 
+    const geocoder = getGeocoder();
+    // The provider would answer nothing for this address, so it must not spend the user's budget.
+    if (!geocoder.supports(address)) return { location: null, cached: false, rateLimited: false };
+
     const allowed = await consumeRateLimit(
       "geocode",
       userId,
@@ -51,7 +55,7 @@ export async function geocodeAddress(address: AddressInput, userId: string): Pro
       return { location: null, cached: false, rateLimited: true };
     }
 
-    const location = await getGeocoder().geocode(address);
+    const location = await geocoder.geocode(address);
     if (!location) return { location: null, cached: false, rateLimited: false };
 
     await cachePutJson(key, location, GEOCODE_CACHE_TTL_SECONDS);

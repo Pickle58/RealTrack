@@ -24,6 +24,10 @@ function toCoordinate(value: unknown, min: number, max: number): number | null {
 }
 
 export const geocod: Geocoder = {
+  supports(address: AddressInput): boolean {
+    return COUNTRY_PARAMETERS[address.country.toUpperCase()] !== undefined;
+  },
+
   async geocode(address: AddressInput): Promise<GeocodeResult | null> {
     const apiKey = getEnv().GEOCODER_API_KEY;
     if (!apiKey) {

@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { check, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { propertyStatusValues } from "@/types/property";
+import { propertyStatusValues, septicValues, waterValues } from "@/types/property";
 
 const NOW_MS = sql`(unixepoch() * 1000)`;
 
@@ -19,6 +19,8 @@ export const properties = sqliteTable(
     longitude: real("longitude"),
     bedrooms: integer("bedrooms").notNull(),
     bathrooms: real("bathrooms").notNull(),
+    septic: text("septic", { enum: septicValues }),
+    water: text("water", { enum: waterValues }),
     priceCents: integer("price_cents").notNull(),
     currency: text("currency").notNull().default("USD"),
     status: text("status", { enum: propertyStatusValues }).notNull().default("draft"),

@@ -153,19 +153,31 @@ export async function upload(propertyId: string, ownerId: MediaOwnerScope, file:
 
   await r2.putMedia(key, await file.arrayBuffer(), file.type);
 
+  const values = {
+    id,
+    propertyId,
+    r2Key: key,
+    mimeType: file.type,
+    sizeBytes: file.size,
+    isCover,
+    uploadedAt: Date.now(),
+  };
+
   try {
-    const [row] = await getDb()
+    // A concurrent upload of the property's first photo can take the cover and trip the
+    // one-cover index, so a rejected cover insert is retried as a plain non-cover upload.
+    let [row] = await getDb()
       .insert(propertyMedia)
-      .values({
-        id,
-        propertyId,
-        r2Key: key,
-        mimeType: file.type,
-        sizeBytes: file.size,
-        isCover,
-        uploadedAt: Date.now(),
-      })
+      .values(values)
+      .onConflictDoNothing()
       .returning();
+
+    if (!row && isCover) {
+      [row] = await getDb()
+        .insert(propertyMedia)
+        .values({ ...values, isCover: false })
+        .returning();
+    }
 
     if (!row) throw new Error("insert returned no row");
     await emitPropertyEvent("property.updated", { propertyId, ownerId: propertyOwnerId });

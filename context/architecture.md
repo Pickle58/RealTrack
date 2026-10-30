@@ -211,6 +211,8 @@ There is **no `users` table**. Identity, credentials, and sessions live in Clerk
 | longitude      | real    | Nullable; from geocoder                            |
 | bedrooms       | integer | Required, ≥ 0                                      |
 | bathrooms      | real    | Required, ≥ 0, step 0.5                            |
+| septic         | text    | Nullable; `city` \| `tank` (NULL = not specified)  |
+| water          | text    | Nullable; `city` \| `well` (NULL = not specified)  |
 | price_cents    | integer | Required, ≥ 0                                      |
 | currency       | text    | Default `USD`                                      |
 | status         | text    | `draft` \| `active` \| `sold` \| `off_market`, default `draft` |
@@ -275,11 +277,12 @@ List invalidation uses a version counter: every `property.*` event bumps `proper
 // lib/geocoder/types.ts
 export interface Geocoder {
   geocode(address: AddressInput): Promise<GeocodeResult | null>;
+  supports(address: AddressInput): boolean; // false → the provider cannot handle it
 }
-// services/geocoding.ts: hash address → KV get → provider call → KV put (30d) → return
+// services/geocoding.ts: hash address → KV get → supports? → rate limit → provider call → KV put (30d)
 ```
 
-Called server-side only; API key from a Worker secret. Failure or rate limit returns `null`, the property still saves, and `latitude/longitude` stay null.
+Called server-side only; API key from a Worker secret. Failure or rate limit returns `null`, the property still saves, and `latitude/longitude` stay null. An address the provider does not support is skipped before the rate-limit counter is spent.
 
 ---
 

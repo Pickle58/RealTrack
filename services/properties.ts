@@ -62,6 +62,8 @@ function toProperty(row: PropertyRow): Property {
     longitude: row.longitude,
     bedrooms: row.bedrooms,
     bathrooms: row.bathrooms,
+    septic: row.septic,
+    water: row.water,
     priceCents: row.priceCents,
     currency: row.currency,
     status: row.status as PropertyStatus,
@@ -384,6 +386,8 @@ function toRowValues(input: PropertyInput) {
     country: input.country,
     bedrooms: input.bedrooms,
     bathrooms: input.bathrooms,
+    septic: input.septic,
+    water: input.water,
     priceCents: input.price * 100,
     status: input.status,
   };

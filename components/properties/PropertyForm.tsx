@@ -18,7 +18,12 @@ import { Input } from "@/components/ui/input";import { Select,
   SelectValue,
 } from "@/components/ui/select";
 import type { ActionResult } from "@/lib/action-result";
-import { propertyStatusValues, type PropertyStatus } from "@/types/property";
+import {
+  propertyStatusValues,
+  type PropertyStatus,
+  type SepticSystem,
+  type WaterSource,
+} from "@/types/property";
 import {
   propertyInputSchema,
   type PropertyFormValues,
@@ -31,6 +36,12 @@ const statusLabels: Record<PropertyStatus, string> = {
   sold: "Sold",
   off_market: "Off market",
 };
+
+const septicLabels: Record<SepticSystem, string> = { city: "City", tank: "Tank" };
+const waterLabels: Record<WaterSource, string> = { city: "City", well: "Well" };
+
+/** Radix Select rejects an empty item value, so "not specified" needs a sentinel. */
+const NOT_SPECIFIED = "not_specified";
 
 type FieldName = keyof PropertyFormValues;
 
@@ -218,6 +229,70 @@ export function PropertyForm({
                   {...fieldProps("price", true)}
                 />
               </div>
+            </FormField>
+
+            <FormField error={errors.septic?.message} id="septic" label="Septic">
+              <Controller
+                control={control}
+                name="septic"
+                render={({ field }) => (
+                  <Select
+                    onValueChange={(value) =>
+                      field.onChange(value === NOT_SPECIFIED ? "" : value)
+                    }
+                    value={field.value || NOT_SPECIFIED}
+                  >
+                    <SelectTrigger
+                      className="w-full"
+                      onBlur={field.onBlur}
+                      ref={field.ref}
+                      {...fieldProps("septic")}
+                    >
+                      <SelectValue placeholder="Choose city or tank" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NOT_SPECIFIED}>Not specified</SelectItem>
+                      {Object.entries(septicLabels).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </FormField>
+
+            <FormField error={errors.water?.message} id="water" label="Water">
+              <Controller
+                control={control}
+                name="water"
+                render={({ field }) => (
+                  <Select
+                    onValueChange={(value) =>
+                      field.onChange(value === NOT_SPECIFIED ? "" : value)
+                    }
+                    value={field.value || NOT_SPECIFIED}
+                  >
+                    <SelectTrigger
+                      className="w-full"
+                      onBlur={field.onBlur}
+                      ref={field.ref}
+                      {...fieldProps("water")}
+                    >
+                      <SelectValue placeholder="Choose city or well" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NOT_SPECIFIED}>Not specified</SelectItem>
+                      {Object.entries(waterLabels).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             </FormField>
           </div>
         </section>
