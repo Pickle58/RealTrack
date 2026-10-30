@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Show } from "@clerk/nextjs";
+import { Logo } from "@/components/layout/Logo";
 import { NavbarAuth } from "@/components/layout/NavbarAuth";
 import { cn } from "@/lib/utils";
 
@@ -15,8 +16,8 @@ export function Navbar() {
     <header className="sticky top-0 z-40 w-full border-b border-border bg-surface">
       <div className="mx-auto flex h-16 w-full max-w-[1200px] items-center justify-between gap-4 px-4 md:px-6">
         <div className="flex min-w-0 items-center gap-6">
-          <Link className="truncate text-base font-semibold text-text-primary" href="/">
-            Real Estate Tracker
+          <Link className="flex min-w-0 items-center" href="/">
+            <Logo />
           </Link>
           <nav aria-label="Main" className="flex items-center gap-4">
             {links.map((link) => {

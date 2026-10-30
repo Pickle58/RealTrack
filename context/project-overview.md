@@ -31,7 +31,7 @@ Agents keep property details in spreadsheets, notes, and scattered photo folders
 
 ## Navigation
 
-Top navbar only. Left: logo "Real Estate Tracker". Links in order: **Browse** (`/properties`), **Dashboard** (`/dashboard`, signed-in only). Right: **Sign in / Sign up** buttons when signed out; Clerk `UserButton` when signed in. A primary **Add property** button appears in the navbar for `agent` and `admin`.
+Top navbar only. Left: RealTrack logo (two-colour mark: accent teal roof over an ink house body, wordmark `Real` in ink and `Track` in the accent). Links in order: **Browse** (`/properties`), **Dashboard** (`/dashboard`, signed-in only). Right: **Sign in / Sign up** buttons when signed out; Clerk `UserButton` when signed in. A primary **Add property** button appears in the navbar for `agent` and `admin`.
 
 ---
 

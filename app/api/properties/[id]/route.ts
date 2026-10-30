@@ -10,7 +10,11 @@ export async function GET(
   try {
     detail = await getById(id, null);
   } catch (error) {
-    console.error("[app/api/properties/[id]/GET]", error);
+    // Reported without detail: the failure table keeps raw query/binding errors off the wire.
+    console.error(
+      "[app/api/properties/[id]/GET]",
+      error instanceof Error ? error.name : "UnknownError",
+    );
     return Response.json(
       { success: false, error: "Properties are temporarily unavailable" },
       { status: 503 },

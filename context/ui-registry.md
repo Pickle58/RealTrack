@@ -29,12 +29,21 @@ After building any component, record: name, file path, props, and exact classes 
 
 ## Components
 
+### Logo
+
+- Path: `components/layout/Logo.tsx`
+- Type: server
+- Props: none
+- Classes: wrapper `flex min-w-0 items-center gap-2`; mark `h-7 w-7 shrink-0` with a teal roof `stroke-accent` (`strokeWidth` 3.4, round joins) over an ink house body `stroke-text-primary` (`strokeWidth` 2.8); wordmark `truncate text-base font-semibold tracking-tight text-text-primary` with **Track** in `text-accent`
+- Used in: `Navbar` (home link), so every page
+- Notes: the two brand colours are the accent teal and `text-text-primary` ink — no white glyph and no tile, so the mark survives on any surface. It is a single `viewBox="0 0 32 32"` SVG drawn with `stroke`, so it scales cleanly from 16 px to 64 px; `aria-hidden` on the SVG lets the **RealTrack** text carry the link's accessible name
+
 ### Navbar
 
 - Path: `components/layout/Navbar.tsx`
 - Type: client (`usePathname` for the active link)
 - Props: none
-- Classes: `sticky top-0 z-40 w-full border-b border-border bg-surface`; inner `mx-auto flex h-16 w-full max-w-[1200px] items-center justify-between gap-4 px-4 md:px-6`; logo `truncate text-base font-semibold text-text-primary`; nav link `text-sm font-medium`, active `text-accent`, inactive `text-text-secondary hover:text-text-primary`
+- Classes: `sticky top-0 z-40 w-full border-b border-border bg-surface`; inner `mx-auto flex h-16 w-full max-w-[1200px] items-center justify-between gap-4 px-4 md:px-6`; logo is `<Logo />` inside a `flex min-w-0 items-center` home link; nav link `text-sm font-medium`, active `text-accent`, inactive `text-text-secondary hover:text-text-primary`
 - Used in: every page, through `PageShell`
 - Links are **Browse** always plus **Dashboard** whenever Clerk reports a session (`useAuth().isSignedIn`); the right side is `NavbarAuth`. Feature 10 replaced the mock state with Clerk and deleted `lib/mock-auth.ts`.
 
