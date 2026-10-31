@@ -7,6 +7,17 @@ export default defineConfig({
     compatibilityDate: "2026-10-27",
     compatibilityFlags: ["nodejs_compat"],
     domains: ["realtrack.elderpickle.com"],
+    observability: {
+      enabled: true, // persists logs (shorthand for logs.enabled)
+      logs: {
+        enabled: true,
+        invocationLogs: true, // log every invocation
+        headSamplingRate: 1, // 1 = 100% of requests logged
+      },
+      issues: {
+        enabled: true, // detect & group production failures
+      },
+    },
     assets: {
       htmlHandling: "none",
       notFoundHandling: "none",

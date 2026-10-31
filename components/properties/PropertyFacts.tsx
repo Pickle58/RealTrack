@@ -32,6 +32,12 @@ export function PropertyFacts({
   septic: SepticSystem | null;
   water: WaterSource | null;
 }) {
+  // A KV entry written before lot size existed has neither field, so an unknown shape reads as unset.
+  const lotSizeLabel =
+    typeof lotSize === "number" && (lotSizeUnit === "sqft" || lotSizeUnit === "acres")
+      ? formatLotSize(lotSize, lotSizeUnit)
+      : "Not specified";
+
   return (
     <dl className="grid grid-cols-2 gap-4">
       <div className="flex flex-col gap-1">
@@ -52,9 +58,7 @@ export function PropertyFacts({
         <dt className="text-xs font-medium text-text-secondary">Lot size</dt>
         <dd className="inline-flex items-center gap-2 text-sm font-medium text-text-primary">
           <Ruler aria-hidden className="size-4 text-text-muted" />
-          {lotSize !== null && lotSizeUnit !== null
-            ? formatLotSize(lotSize, lotSizeUnit)
-            : "Not specified"}
+          {lotSizeLabel}
         </dd>
       </div>
       <div className="flex flex-col gap-1">
