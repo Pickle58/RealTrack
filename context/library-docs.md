@@ -80,7 +80,7 @@ export function getEnv(): Env { return env; }
 ### What runs where
 
 - `cf dev` runs the Vite dev server with the app inside workerd (Workers runtime). It prints the local URL (default `http://localhost:5173/`); `/cdn-cgi/local/explorer` opens Local Explorer to inspect bindings, logs, and traces. `cf dev` accepts no `--port`: set `server.port` in `vite.config.ts`.
-- `cf build` writes Build Output to `.cloudflare/output/v0/` and needs no credentials. `cf deploy --dry-run` validates the build without credentials. `cf deploy` builds, uploads a version, and deploys. `cf previews deploy [name]` deploys a Worker Preview.
+- `cf build` writes Build Output to `.cloudflare/output/v0/` and needs no credentials — it is the only safe way to validate a build. **`cf deploy --dry-run` is not safe:** its help text promises "Build a project and run checks without actually uploading the Worker", but on 2026-10-30 it uploaded and deployed a new version (see `progress-tracker.md`). `cf deploy` builds, uploads a version, and deploys. `cf previews deploy [name]` deploys a Worker Preview.
 - Dev data lives in `.cloudflare/state/`. **`--local` on `cf d1/kv/r2` commands uses a different store** (`~/.config/cloudflare/state/v3` on Linux, `~/Library/Preferences/cloudflare/state/v3` on macOS), so migrations applied with `--local` may not be visible to `cf dev`. After applying migrations, check Local Explorer. If the tables are missing, try `--persist-to .cloudflare/state` (it uses `<dir>/v3`) or find the working invocation with `cf docs search` and record it in `progress-tracker.md`.
 
 ### vinext rules
@@ -103,12 +103,12 @@ export function getEnv(): Env { return env; }
 | Find a command | `cf cli search "<task>"`, `cf <product> --help`, `cf schema <command>` |
 | Search live docs | `cf docs search "<query>"` |
 | Preview a request without sending it | add `--dry-run` (use IDs, not names) |
-| Dev / build / validate / deploy | `cf dev` / `cf build` / `cf deploy --dry-run` / `cf deploy` |
+| Dev / build / validate / deploy | `cf dev` / `cf build` (validate) / `cf deploy` — `cf deploy --dry-run` still deploys |
 | Deploy with secrets | `cf deploy --secrets-file <path>` |
 | Worker Preview | `cf previews deploy [name]` |
 | List local resources | `cf d1 list --local`, `cf kv namespaces list --local`, `cf r2 buckets list --local` |
 | D1 migrations | `cf d1 migrations apply <DATABASE_ID> --local` (without `--local` it applies to **remote**) |
-| D1 SQL | `cf d1 raw <DATABASE_ID> --sql "..." --local` (`cf d1 query` has no local mode) |
+| D1 SQL | `cf d1 raw <DATABASE_ID> --sql "..." --local` (`cf d1 query` has no local mode); add `--persist-to .cloudflare/state` and the dev database's simulated id `DB-real-estate-tracker` to read or write what `cf dev` sees |
 | KV / R2 data | `cf kv keys list\|get\|put\|delete ... --local`, `cf r2 objects list\|get\|put ... --local` |
 | Generate binding types | `cf workers types` |
 | DNS records | `cf dns records create --zone <ZONE_ID> --body '{...}' --dry-run`, then without `--dry-run` |
@@ -270,7 +270,18 @@ const [row] = await db.insert(propertyMedia).values({ ... }).returning();
 ## Zod
 
 ```typescript
-// validations/property.ts
+// validations/property.ts (excerpt)
+// An optional amount arrives as a string; blank means "not specified" and must stay NULL.
+function optionalWholeAmount(label: string, min: number, max: number) {
+  return z
+    .string()
+    .optional()
+    .transform((value) => (value ?? "").trim())
+    .refine((value) => value === "" || Number.isInteger(Number(value)), `Enter ${label.toLowerCase()} as a whole number.`)
+    .refine((value) => value === "" || (Number(value) >= min && Number(value) <= max), `${label} must be between ${min} and ${max}.`)
+    .transform((value) => (value === "" ? null : Number(value)));
+}
+
 export const propertyInputSchema = z.object({
   addressLine1: z.string().trim().min(3).max(200),
   addressLine2: z.string().trim().max(200).optional(),
@@ -278,19 +289,20 @@ export const propertyInputSchema = z.object({
   stateProvince: z.string().trim().min(1).max(100),
   postalCode: z.string().trim().min(2).max(20),
   country: z.string().trim().length(2).default("US"),
-  bedrooms: z.coerce.number().int().min(0).max(50).nullable(), // blank -> NULL (vacant land, uncounted)
-  bathrooms: z.coerce.number().min(0).max(50).multipleOf(0.5).nullable(),
-  lotSize: z.coerce.number().min(0).nullable(),
-  lotSizeUnit: z.enum(["sqft", "acres"]).nullable(),           // required whenever lotSize is set
-  electric: z.enum(["at_property", "available", "none"]).nullable(),
-  price: z.coerce.number().min(0),            // dollars in the form, converted to cents in the service
-  status: z.enum(["draft", "active", "sold", "off_market"]),
+  bedrooms: optionalWholeAmount("Bedrooms", 0, 50),          // blank -> NULL (vacant land, uncounted)
+  bathrooms: optionalHalfStepAmount("Bathrooms", 0, 50),     // 0.5 steps, blank -> NULL
+  lotSize: optionalAmount("Lot size", 0, 100_000_000),       // blank -> NULL
+  lotSizeUnit: optionalChoice(lotSizeUnitValues, "Choose square feet or acres."), // required whenever lotSize is set
+  electric: optionalChoice(electricValues, "Choose at property, available or none."),
+  price: wholeAmount("Price", 0, 1_000_000_000),             // dollars in the form, converted to cents in the service
+  status: z.enum(propertyStatusValues, { error: "Choose a status." }),
 });
 ```
 
 **Rules:**
 
 - One schema per boundary, in `validations/`. Reuse them client-side with `react-hook-form`.
+- The optional helpers (`optionalAmount`, `optionalWholeAmount`, `optionalHalfStepAmount`, `optionalChoice`) live in `validations/property.ts` and are the pattern for any optional numeric or enum field. **Do not use `z.coerce.number()` for them:** `Number("")` is `0`, so a blank input would be saved as a real zero instead of NULL.
 - Search params: `z.coerce` with defaults and caps (`pageSize` ≤ 50).
 - Convert dollars → cents exactly once, in `services/properties.ts`.
 

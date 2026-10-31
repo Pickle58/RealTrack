@@ -11,6 +11,11 @@ import type { PropertyListItem } from "@/types/property";
 
 export function PropertyCard({ item }: { item: PropertyListItem }) {
   const { property, coverImage } = item;
+  // A KV entry written before lot size existed has neither field, so an unknown shape reads as unset.
+  const lotSizeLabel =
+    typeof property.lotSize === "number" && (property.lotSizeUnit === "sqft" || property.lotSizeUnit === "acres")
+      ? formatLotSize(property.lotSize, property.lotSizeUnit)
+      : null;
 
   return (
     <Card className="gap-0 overflow-hidden p-0 transition-shadow hover:shadow-md">
@@ -50,10 +55,10 @@ export function PropertyCard({ item }: { item: PropertyListItem }) {
                 {property.bathrooms} ba
               </span>
             ) : null}
-            {property.lotSize !== null && property.lotSizeUnit !== null ? (
+            {lotSizeLabel !== null ? (
               <span className="inline-flex items-center gap-1.5">
                 <Ruler aria-hidden className="size-4" />
-                {formatLotSize(property.lotSize, property.lotSizeUnit)}
+                {lotSizeLabel}
               </span>
             ) : null}
           </div>

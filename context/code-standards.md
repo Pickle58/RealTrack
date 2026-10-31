@@ -130,7 +130,14 @@ export async function GET(request: Request): Promise<Response> {
 - Drizzle parameterized builders only. No raw SQL string building.
 - Always apply the viewer filter (active-only or owner scope) inside the service, not in the caller.
 - Use `db.batch([...])` for multi-statement writes (D1 has no interactive transactions).
-- Schema changes: edit `lib/db/schema.ts` → `pnpm db:generate` → commit the generated SQL → `pnpm db:migrate:local`. Never edit generated migrations by hand.
+- Schema changes: edit `lib/db/schema.ts` → `pnpm db:generate` → commit the generated SQL → apply it to the database `cf dev` reads:
+
+  ```bash
+  cf d1 raw DB-real-estate-tracker --local --persist-to .cloudflare/state --sql "$(grep -v '^--' migrations/<file>.sql)"
+  ```
+
+  **`pnpm db:migrate:local` does not update that database.** It runs `cf d1 migrations apply <DATABASE_ID> --local`, which needs a real database UUID and therefore writes to a separate store (`~/.config/cloudflare/state/v3`), keyed by that UUID; `cf dev` reads `.cloudflare/state/`, where its database is the simulated id `DB-real-estate-tracker`. Use `db:migrate:local` only to prove the chain applies cleanly to an empty database. Verify the dev database afterwards in Local Explorer (`/cdn-cgi/local/explorer`).
+- Never edit generated migrations by hand; the single documented exception is `migrations/0002_melodic_zaladane.sql` (media rows copied aside around the table rebuild, and the columns it adds copied as `NULL` instead of `SELECT`-ed from the old table).
 - Money in integer cents. Format only at the UI edge with `formatPrice()`.
 
 ---
@@ -201,7 +208,7 @@ Secrets are declared with `bindings.secret()`. Local values go in `.dev.vars` (g
 
 ## Scripts (package.json)
 
-`dev` (`cf dev`), `build` (`cf build`), `lint`, `typecheck` (`cf workers types && tsc --noEmit`), `test`, `deploy` (`cf deploy`), `db:generate` (`drizzle-kit generate`), `db:migrate:local` (`cf d1 migrations apply <DATABASE_ID> --local`), `db:migrate:remote` (same without `--local`; applies to the remote database by default). `cf` does not run `package.json` scripts, so chain any extra build steps yourself (e.g. `"build": "tsc -b && cf build"`). There is no `preview` or `cf-typegen` script.
+`dev` (`cf dev`), `build` (`cf build`), `lint`, `typecheck` (`cf workers types && tsc --noEmit`), `test`, `deploy` (`cf deploy`), `db:generate` (`drizzle-kit generate`), `db:migrate:local` (`cf d1 migrations apply <DATABASE_ID> --local` — a separate local store, **not** the database `cf dev` reads; see Database), `db:migrate:remote` (same without `--local`; applies to the remote database by default). `cf` does not run `package.json` scripts, so chain any extra build steps yourself (e.g. `"build": "tsc -b && cf build"`). There is no `preview` or `cf-typegen` script.
 
 ---
 

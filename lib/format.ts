@@ -5,7 +5,12 @@ export function formatFileSize(bytes: number): string {
 }
 
 export function formatLotSize(value: number, unit: "sqft" | "acres"): string {
-  if (unit === "acres") return `${value.toLocaleString("en-US", { maximumFractionDigits: 4 })} ac`;
+  // A positive lot size smaller than the unit's precision would print as a flat zero.
+  if (unit === "acres") {
+    if (value > 0 && value < 0.0001) return "< 0.0001 ac";
+    return `${value.toLocaleString("en-US", { maximumFractionDigits: 4 })} ac`;
+  }
+  if (value > 0 && value < 1) return "< 1 sq ft";
   return `${value.toLocaleString("en-US", { maximumFractionDigits: 0 })} sq ft`;
 }
 

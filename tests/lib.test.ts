@@ -40,6 +40,17 @@ describe("formatLotSize", () => {
     expect(formatLotSize(0.25, "acres")).toBe("0.25 ac");
     expect(formatLotSize(12.5, "acres")).toBe("12.5 ac");
   });
+
+  it("marks a positive amount that is smaller than the displayed precision", () => {
+    expect(formatLotSize(0.4, "sqft")).toBe("< 1 sq ft");
+    expect(formatLotSize(0.00001, "acres")).toBe("< 0.0001 ac");
+  });
+
+  it("still prints zero and negative amounts as they are", () => {
+    expect(formatLotSize(0, "sqft")).toBe("0 sq ft");
+    expect(formatLotSize(0, "acres")).toBe("0 ac");
+    expect(formatLotSize(-1, "sqft")).toBe("-1 sq ft");
+  });
 });
 
 describe("sha256Hex", () => {
