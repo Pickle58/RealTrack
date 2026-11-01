@@ -93,7 +93,10 @@ export async function createProperty(
     return ok({ id: property.id });
   } catch (error) {
     if (error instanceof AuthError) return fail("You don't have permission to do that.");
-    console.error("[actions/properties/createProperty]", error);
+    console.error(
+      "[actions/properties/createProperty]",
+      error instanceof Error ? error.name : "UnknownError",
+    );
     return fail("Could not save the property. Please try again.");
   }
 }
@@ -102,7 +105,7 @@ export async function createProperty(
 - Return `ActionResult<T> = { success: true; data: T; warning?: string } | { success: false; error: string; fieldErrors?: Record<string, string[]> }`. Use `ok(data, warning)` when the write succeeded but something degraded (e.g. the geocode budget was spent and coordinates are null); the warning is shown as a toast next to the success message.
 - Authorize first, validate with Zod, then call a service.
 - Redirects happen in the calling code after a success result, never inside a `try` block (`redirect()` throws).
-- Never expose raw error messages to the client.
+- Never expose raw error messages to the client, and never log the raw error object: a D1/Drizzle failure carries the full SQL text and every bound value (addresses, prices, ids). Log the tag plus `error instanceof Error ? error.name : "UnknownError"`, as `app/api/properties/route.ts` does.
 
 ---
 

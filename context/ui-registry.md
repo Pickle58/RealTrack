@@ -38,6 +38,14 @@ After building any component, record: name, file path, props, and exact classes 
 - Used in: `Navbar` (home link), so every page
 - Notes: the two brand colours are the accent teal and `text-text-primary` ink — no white glyph and no tile, so the mark survives on any surface. It is a single `viewBox="0 0 32 32"` SVG drawn with `stroke`, so it scales cleanly from 16 px to 64 px; `aria-hidden` on the SVG lets the **RealTrack** text carry the link's accessible name
 
+### Favicon
+
+- Path: `app/icon.svg` (Next.js metadata file convention — the framework emits `<link rel="icon" type="image/svg+xml">` for it, no `<head>` edit needed)
+- Type: static asset
+- Classes: n/a; the favicon cannot use Tailwind tokens, so the two brand colours are written as hex (`#0F766E` roof, `#111827` body) and sit on a `#CCFBF1` (`accent-light`) rounded square so the ink body stays visible on dark browser chrome
+- Used in: the document head of every page
+- Notes: same geometry and stroke widths as the `Logo` mark, so the tab icon and the navbar mark are the same house. Keep the two files in sync if the mark changes
+
 ### Navbar
 
 - Path: `components/layout/Navbar.tsx`
