@@ -40,7 +40,11 @@ export async function createProperty(
     return ok({ id: created.id }, geocodeWarning(created.geocode));
   } catch (error) {
     if (error instanceof AuthError) return fail(SIGNED_OUT);
-    console.error("[actions/properties/createProperty]", error);
+    // Reported without detail: a D1 failure carries the SQL text and every bound value.
+    console.error(
+      "[actions/properties/createProperty]",
+      error instanceof Error ? error.name : "UnknownError",
+    );
     return fail("Could not save the property. Please try again.");
   }
 }
@@ -65,7 +69,10 @@ export async function updateProperty(
     return ok({ id }, geocodeWarning(updated.geocode));
   } catch (error) {
     if (error instanceof AuthError) return fail(SIGNED_OUT);
-    console.error("[actions/properties/updateProperty]", error);
+    console.error(
+      "[actions/properties/updateProperty]",
+      error instanceof Error ? error.name : "UnknownError",
+    );
     return fail("Could not save the property. Please try again.");
   }
 }
@@ -82,7 +89,10 @@ export async function deleteProperty(id: string): Promise<ActionResult> {
     return ok(undefined);
   } catch (error) {
     if (error instanceof AuthError) return fail(SIGNED_OUT);
-    console.error("[actions/properties/deleteProperty]", error);
+    console.error(
+      "[actions/properties/deleteProperty]",
+      error instanceof Error ? error.name : "UnknownError",
+    );
     return fail("Could not delete the property. Please try again.");
   }
 }
