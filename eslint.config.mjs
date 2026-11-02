@@ -10,6 +10,7 @@ export default tseslint.config(
       ".next/**",
       "dist/**",
       "migrations/**",
+      ".agents/**",
     ],
   },
   js.configs.recommended,

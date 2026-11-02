@@ -19,6 +19,12 @@ This file is the entry point for any coding agent (Claude Code, Cursor, Codex, W
 - Cloudflare is managed with the `cf` CLI (beta) and `cloudflare.config.ts`. Find commands with `cf cli search "<task>"`, read live docs with `cf docs search "<query>"`, inspect request shapes with `cf schema <command>`, and preview any resource change with `--dry-run` first. Never guess command syntax. Never pass `--force` without reading the command's `--help`. Never create a Wrangler config or run `wrangler` / `opennextjs-cloudflare`. `cf` does not run `package.json` scripts. Reference: https://developers.cloudflare.com/cf/llms.txt and https://github.com/cloudflare/skills.
 - If the spec is ambiguous, check "Decisions Made" in `progress-tracker.md` before asking or guessing.
 
+**Superpowers skills (vendored in `.agents/superpowers/skills/`):**
+- Before non-trivial work, read the matching `SKILL.md` and follow it: `brainstorming` for a new feature or behaviour change, `writing-plans` when the spec is bigger than one pass, `executing-plans` (or `subagent-driven-development`) to carry a plan out, `test-driven-development` for any implementation, `systematic-debugging` for any bug, failing check or odd behaviour, `verification-before-completion` before claiming anything is done or passing, `requesting-code-review` / `receiving-code-review` around a merge, `dispatching-parallel-agents` for 2+ independent tasks.
+- These skills govern *how* work is done. `progress-tracker.md` and `build-plan.md` still decide *what* comes next and what "done" means: a plan made with `writing-plans` covers the feature already chosen, never adds scope, and its checkpoints end at that feature's Done-when list plus `pnpm lint && pnpm typecheck && pnpm test && pnpm build`.
+- Read the current `SKILL.md` instead of working from memory, name the skill you are following, and mirror any checklist it has into `write_todos`.
+- Upstream's `using-superpowers` bootstrap assumes a harness that loads plugins and hooks; here this section is the trigger, and where a skill conflicts with this file or anything in `context/`, this file wins. Provenance and update steps: [.agents/superpowers/README.md](.agents/superpowers/README.md).
+
 **End of every session:**
 1. Run `pnpm lint && pnpm typecheck && pnpm build`. Fix failures.
 2. Add every new reusable component to `ui-registry.md`.
