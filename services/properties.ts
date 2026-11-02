@@ -19,6 +19,7 @@ import type {
   PropertyDocument,
   PropertyImage,
   PropertyListItem,
+  PropertyListPage,
   PropertySearchResult,
   PropertyStatus,
 } from "@/types/property";
@@ -30,6 +31,7 @@ import { isImageMedia } from "@/validations/media";
 import type { PropertyInput } from "@/validations/property";
 
 export const FEATURED_PROPERTY_LIMIT = 6;
+export const DASHBOARD_PAGE_SIZE = 20;
 export const LIST_CACHE_TTL_SECONDS = 60;
 export const DETAIL_CACHE_TTL_SECONDS = 300;
 
@@ -143,36 +145,47 @@ function emptyMedia(): PropertyMedia {
   return { images: [], documents: [] };
 }
 
+/**
+ * D1 binds at most 100 parameters per query, and `inArray` spends one per property id. The
+ * dashboard lists a whole owner's account (or every row, for an admin), so the lookup is split
+ * into batches instead of becoming one oversized statement past 100 listings.
+ */
+const MEDIA_LOOKUP_BATCH_SIZE = 50;
+
 /** Cover-first ordering means `images[0]` is the listing's cover (or its oldest photo). */
 async function loadMedia(propertyIds: string[]): Promise<Map<string, PropertyMedia>> {
   const byProperty = new Map<string, PropertyMedia>();
   if (propertyIds.length === 0) return byProperty;
 
-  const rows = await getDb()
-    .select()
-    .from(propertyMedia)
-    .where(inArray(propertyMedia.propertyId, propertyIds))
-    .orderBy(desc(propertyMedia.isCover), asc(propertyMedia.uploadedAt), asc(propertyMedia.id));
+  const db = getDb();
+  for (let start = 0; start < propertyIds.length; start += MEDIA_LOOKUP_BATCH_SIZE) {
+    const batch = propertyIds.slice(start, start + MEDIA_LOOKUP_BATCH_SIZE);
+    const rows = await db
+      .select()
+      .from(propertyMedia)
+      .where(inArray(propertyMedia.propertyId, batch))
+      .orderBy(desc(propertyMedia.isCover), asc(propertyMedia.uploadedAt), asc(propertyMedia.id));
 
-  for (const row of rows) {
-    const media = byProperty.get(row.propertyId) ?? emptyMedia();
-    if (isImageMedia(row.mimeType)) {
-      media.images.push({
-        id: row.id,
-        src: `/media/${row.id}`,
-        altText: row.altText ?? "",
-        mimeType: row.mimeType,
-        sizeBytes: row.sizeBytes,
-      });
-    } else {
-      media.documents.push({
-        id: row.id,
-        src: `/media/${row.id}`,
-        mimeType: row.mimeType,
-        sizeBytes: row.sizeBytes,
-      });
+    for (const row of rows) {
+      const media = byProperty.get(row.propertyId) ?? emptyMedia();
+      if (isImageMedia(row.mimeType)) {
+        media.images.push({
+          id: row.id,
+          src: `/media/${row.id}`,
+          altText: row.altText ?? "",
+          mimeType: row.mimeType,
+          sizeBytes: row.sizeBytes,
+        });
+      } else {
+        media.documents.push({
+          id: row.id,
+          src: `/media/${row.id}`,
+          mimeType: row.mimeType,
+          sizeBytes: row.sizeBytes,
+        });
+      }
+      byProperty.set(row.propertyId, media);
     }
-    byProperty.set(row.propertyId, media);
   }
 
   return byProperty;
@@ -298,14 +311,36 @@ async function loadDetail(id: string, viewer: ServiceViewer): Promise<PropertyDe
   return { property: toProperty(row), ...(media.get(row.id) ?? emptyMedia()) };
 }
 
-export async function listByOwner(ownerId: OwnerScope): Promise<PropertyListItem[]> {
-  const rows = await getDb()
+/** Dashboard page of an owner's listings (or every listing for admins), newest edit first. */
+export async function listByOwner(
+  ownerId: OwnerScope,
+  page = 1,
+  pageSize = DASHBOARD_PAGE_SIZE,
+): Promise<PropertyListPage> {
+  const where = ownerId === null ? undefined : eq(properties.ownerId, ownerId);
+  const size = Math.max(1, pageSize);
+  const db = getDb();
+
+  const [totalRow] = await db.select({ total: count() }).from(properties).where(where);
+  const total = totalRow?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(total / size));
+  const currentPage = Math.min(Math.max(1, page), pageCount);
+
+  const rows = await db
     .select()
     .from(properties)
-    .where(ownerId === null ? undefined : eq(properties.ownerId, ownerId))
-    .orderBy(desc(properties.updatedAt), asc(properties.id));
+    .where(where)
+    .orderBy(desc(properties.updatedAt), asc(properties.id))
+    .limit(size)
+    .offset((currentPage - 1) * size);
 
-  return toListItems(rows);
+  return {
+    items: await toListItems(rows),
+    total,
+    page: currentPage,
+    pageSize: size,
+    pageCount,
+  };
 }
 
 export async function getFeaturedProperties(

@@ -64,10 +64,13 @@ export type PropertyDetail = {
   documents: PropertyDocument[];
 };
 
-export type PropertySearchResult = {
+/** One rendered page of listings, shared by public search and the dashboard. */
+export type PropertyListPage = {
   items: PropertyListItem[];
   total: number;
   page: number;
   pageSize: number;
   pageCount: number;
 };
+
+export type PropertySearchResult = PropertyListPage;

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { pageParamSchema } from "@/validations/pagination";
 
 export const propertySortValues = ["newest", "price_asc", "price_desc"] as const;
 
@@ -31,7 +32,7 @@ export const propertySearchSchema = z.object({
   minBedrooms: optionalNumberParam(MAX_COUNT, true),
   minBathrooms: optionalNumberParam(MAX_COUNT),
   sort: propertySortSchema,
-  page: z.coerce.number().int().min(1).max(1000).catch(1),
+  page: pageParamSchema,
   pageSize: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).catch(DEFAULT_PAGE_SIZE),
 });
 

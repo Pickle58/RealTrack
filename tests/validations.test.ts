@@ -14,6 +14,7 @@ import {
   propertyToFormValues,
   type PropertyInput,
 } from "@/validations/property";
+import { pageParamSchema } from "@/validations/pagination";
 import {
   DEFAULT_PAGE_SIZE,
   MAX_PAGE_SIZE,
@@ -362,6 +363,16 @@ describe("propertySearchSchema", () => {
       minPrice: undefined,
       minBathrooms: undefined,
     });
+  });
+});
+
+describe("pageParamSchema", () => {
+  it("reads a page from the URL and falls back to the first for junk", () => {
+    expect(pageParamSchema.parse("3")).toBe(3);
+    expect(pageParamSchema.parse(undefined)).toBe(1);
+    expect(pageParamSchema.parse("0")).toBe(1);
+    expect(pageParamSchema.parse("abc")).toBe(1);
+    expect(pageParamSchema.parse("1001")).toBe(1);
   });
 });
 

@@ -6,10 +6,11 @@ const isDevelopment = process.env.NODE_ENV !== "production";
  * Clerk's script/frame/connect/image hosts, Cloudflare Turnstile, and the Google Fonts hosts
  * vinext needs because `next/font/google` loads from the CDN at runtime. Clerk's abuse and fraud
  * protection hosts only answer on non-443 ports, hence the trailing `:*`.
- * The production Frontend API host is listed explicitly: a production instance on
- * `clerk.<domain>` is not covered by the `*.clerk.com` / `*.clerk.accounts.dev` wildcards.
+ * The production Frontend API host is listed explicitly: it is not covered by the
+ * `*.clerk.com` / `*.clerk.accounts.dev` wildcards. `clerk.elderpickle.com` is the
+ * production instance's Frontend API (the publishable key decodes to that host).
  */
-const productionClerkHost = "https://clerk.realtrack.elderpickle.com";
+const productionClerkHost = "https://clerk.elderpickle.com";
 
 const contentSecurityPolicy = [
   "default-src 'self'",

@@ -4,7 +4,7 @@ import { defaultPropertySearch, type PropertySearchInput } from "@/validations/p
 import type { PropertyInput } from "@/validations/property";
 import { geocodeAddress } from "@/services/geocoding";
 import * as properties from "@/services/properties";
-import { seedProperty } from "./support/seed";
+import { seedMedia, seedProperty } from "./support/seed";
 import { resetTestWorker, startTestWorker, type TestWorker } from "./support/worker";
 
 vi.mock("@/services/geocoding", () => ({ geocodeAddress: vi.fn() }));
@@ -471,11 +471,10 @@ describe("owner-scoped reads", () => {
     await seedProperty(worker, { id: "a-new", ownerId: AGENT_A.id, status: "sold", createdAt: 2_000 });
     await seedProperty(worker, { id: "b", ownerId: AGENT_B.id, status: "active" });
 
-    expect((await properties.listByOwner(AGENT_A.id)).map((item) => item.property.id).sort()).toEqual([
-      "a-new",
-      "a-old",
-    ]);
-    expect((await properties.listByOwner(null)).map((item) => item.property.id)).toHaveLength(3);
+    expect(
+      (await properties.listByOwner(AGENT_A.id)).items.map((item) => item.property.id).sort(),
+    ).toEqual(["a-new", "a-old"]);
+    expect((await properties.listByOwner(null)).items).toHaveLength(3);
   });
 
   it("returns an owned property on any status and nothing for a foreign id", async () => {
@@ -483,5 +482,53 @@ describe("owner-scoped reads", () => {
 
     expect((await properties.getOwnedProperty(id, AGENT_A.id))?.property.id).toBe("a-draft");
     expect(await properties.getOwnedProperty(id, AGENT_B.id)).toBeNull();
+  });
+
+  it("lists owners and admins past D1's 100-parameter limit, covers included", async () => {
+    const firstOwned = "bulk-a-0";
+    const lastOwned = "bulk-a-104";
+    const owned = Array.from({ length: 105 }, (_unused, index) => `bulk-a-${index}`);
+    for (const id of owned) await seedProperty(worker, { id, ownerId: AGENT_A.id });
+    for (let index = 0; index < 3; index += 1) {
+      await seedProperty(worker, { id: `bulk-b-${index}`, ownerId: AGENT_B.id });
+    }
+    await seedMedia(worker, { id: "cover-first", propertyId: firstOwned, isCover: true });
+    await seedMedia(worker, { id: "cover-last", propertyId: lastOwned, isCover: true });
+
+    const forOwner = await properties.listByOwner(AGENT_A.id, 1, 200);
+    expect(forOwner.items).toHaveLength(105);
+    expect(forOwner.items.find((item) => item.property.id === firstOwned)?.coverImage?.id).toBe(
+      "cover-first",
+    );
+    expect(forOwner.items.find((item) => item.property.id === lastOwned)?.coverImage?.id).toBe(
+      "cover-last",
+    );
+
+    expect((await properties.listByOwner(null, 1, 200)).items).toHaveLength(108);
+  });
+
+  it("pages an owner's listings without dropping or duplicating rows", async () => {
+    for (let index = 0; index < 25; index += 1) {
+      await seedProperty(worker, {
+        id: `paged-${index}`,
+        ownerId: AGENT_A.id,
+        createdAt: 1_000 + index,
+      });
+    }
+
+    const first = await properties.listByOwner(AGENT_A.id);
+    expect(first).toMatchObject({ total: 25, page: 1, pageSize: 20, pageCount: 2 });
+    expect(first.items).toHaveLength(20);
+
+    const second = await properties.listByOwner(AGENT_A.id, 2);
+    expect(second).toMatchObject({ total: 25, page: 2, pageCount: 2 });
+    expect(second.items).toHaveLength(5);
+
+    const seen = [...first.items, ...second.items].map((item) => item.property.id);
+    expect(new Set(seen).size).toBe(25);
+
+    const clamped = await properties.listByOwner(AGENT_A.id, 99);
+    expect(clamped.page).toBe(2);
+    expect(clamped.items).toHaveLength(5);
   });
 });
