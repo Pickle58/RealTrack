@@ -21,6 +21,7 @@ import {
   defaultPropertySearch,
   parsePropertySearch,
   propertySearchToParams,
+  toBounds,
 } from "@/validations/property-search";
 
 const validFormValues = {
@@ -427,5 +428,53 @@ describe("media validations", () => {
     expect(tooLong.error?.issues[0]?.message).toBe(
       `Alt text must be ${MAX_ALT_TEXT_LENGTH} characters or fewer.`,
     );
+  });
+});
+
+describe("map bounds", () => {
+  it("keeps a complete, correctly ordered set", () => {
+    const parsed = parsePropertySearch({ n: "40.9", s: "40.6", e: "-73.8", w: "-74.1" });
+
+    expect(parsed).toMatchObject({ n: 40.9, s: 40.6, e: -73.8, w: -74.1 });
+  });
+
+  it("drops a partial set instead of filtering a line", () => {
+    const parsed = parsePropertySearch({ n: "40.9", s: "40.6", w: "-74.1" });
+
+    expect(parsed.n).toBeUndefined();
+    expect(parsed.s).toBeUndefined();
+    expect(parsed.w).toBeUndefined();
+  });
+
+  it("drops inverted corners", () => {
+    const parsed = parsePropertySearch({ n: "40.6", s: "40.9", e: "-73.8", w: "-74.1" });
+
+    expect(parsed.n).toBeUndefined();
+    expect(toBounds(parsed)).toBeNull();
+  });
+
+  it("drops latitudes beyond the projection limit", () => {
+    const parsed = parsePropertySearch({ n: "90", s: "-90", e: "10", w: "0" });
+
+    expect(toBounds(parsed)).toBeNull();
+  });
+
+  it("writes bounds at three decimals and omits them when absent", () => {
+    const withBounds = propertySearchToParams({
+      ...defaultPropertySearch,
+      n: 40.7124,
+      s: 40.6912,
+      e: -73.9442,
+      w: -74.0258,
+    });
+
+    expect(withBounds.toString()).toBe("n=40.712&s=40.691&e=-73.944&w=-74.026");
+    expect(propertySearchToParams(defaultPropertySearch).toString()).toBe("");
+  });
+
+  it("exposes the viewport as one object", () => {
+    const parsed = parsePropertySearch({ n: "41", s: "40", e: "-73", w: "-75" });
+
+    expect(toBounds(parsed)).toEqual({ n: 41, s: 40, e: -73, w: -75 });
   });
 });
