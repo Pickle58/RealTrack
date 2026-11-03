@@ -192,6 +192,7 @@ Installed with the shadcn CLI (style `new-york`, base colour `neutral`, CSS vari
 - Props: `{ initial: PropertySearchInput }`
 - Classes: search row `flex flex-col gap-3 sm:flex-row sm:items-center`; search input `pl-9` with an absolutely positioned `size-4 text-text-muted` icon; sort `SelectTrigger className="w-[190px]"`; mobile trigger `Button className="md:hidden" variant="secondary"`; desktop panel `Card className="hidden gap-4 p-6 md:flex md:flex-row md:items-end"`; fields `grid w-full gap-4 sm:grid-cols-2 md:grid-cols-4`, each field a `Label` (`flex-col items-start gap-2 text-text-secondary`) wrapping its `Input`
 - Used in: `/properties`
+- Regression note (2026-11-03): the map container carries a constant `className`; only a wrapper gets the pending `opacity-60`, because React rewriting the container attribute strips Leaflet classes and blanks the map.
 - Notes: holds the only filter form state and writes every applied value through `propertySearchToParams`, so the URL is the source of truth; the page remounts it with `key={filterKey}` and it resets from the prop when the sheet closes without applying. The same `filterFields` element is rendered in the desktop card and inside the `Sheet` (mounted one at a time), which is why the fields carry no `name` or `id`.
 
 ### PropertyMap

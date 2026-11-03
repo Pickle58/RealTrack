@@ -6,6 +6,8 @@ import type { LayerGroup, Map as LeafletMap } from "leaflet";
 import { Card } from "@/components/ui/card";
 import type { PropertyPin } from "@/types/property";
 import {
+  MAX_LATITUDE,
+  MAX_LONGITUDE,
   propertySearchToParams,
   toBounds,
   type MapBounds,
@@ -51,6 +53,26 @@ function roundBounds(bounds: {
   };
 }
 
+/**
+ * Leaflet reports corners of a zoomed-out map beyond the projection limits (and wraps longitude
+ * past ±180), and a box that crosses the antimeridian cannot be written as `w < e`. Such a view is
+ * "the whole world", which the page already expresses by having no bounds at all.
+ */
+function isExpressible(bounds: MapBounds): boolean {
+  return (
+    Number.isFinite(bounds.n) &&
+    Number.isFinite(bounds.s) &&
+    Number.isFinite(bounds.e) &&
+    Number.isFinite(bounds.w) &&
+    bounds.n <= MAX_LATITUDE &&
+    bounds.s >= -MAX_LATITUDE &&
+    bounds.e <= MAX_LONGITUDE &&
+    bounds.w >= -MAX_LONGITUDE &&
+    bounds.n > bounds.s &&
+    bounds.e > bounds.w
+  );
+}
+
 function sameViewport(a: MapBounds | null, b: MapBounds): boolean {
   if (!a) return false;
   return (
@@ -75,8 +97,25 @@ export function PropertyMap({ search, pins, withoutLocation, pinsTruncated }: Pr
   const layerRef = useRef<LayerGroup | null>(null);
   const searchRef = useRef(search);
   const pinsRef = useRef(pins);
+  /**
+   * The mount effect must run once. `useRouter()` is not guaranteed to keep its identity between
+   * renders, and a re-run removes the map and builds a new one, which resets the view mid-gesture
+   * (and looks like the map vanishing). The latest values are read through refs instead.
+   */
+  const routerRef = useRef(router);
+  const transitionRef = useRef<ReturnType<typeof useTransition>[1] | null>(null);
   const [ready, setReady] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  const writeUrl = startTransition;
+
+  useEffect(() => {
+    routerRef.current = router;
+  }, [router]);
+
+  useEffect(() => {
+    transitionRef.current = writeUrl;
+  }, [writeUrl]);
 
   useEffect(() => {
     searchRef.current = search;
@@ -118,12 +157,29 @@ export function PropertyMap({ search, pins, withoutLocation, pinsTruncated }: Pr
         if (timer) clearTimeout(timer);
         timer = setTimeout(() => {
           const rounded = roundBounds(map.getBounds());
-          if (sameViewport(toBounds(searchRef.current), rounded)) return;
+          const writable = isExpressible(rounded);
 
-          const next = propertySearchToParams({ ...searchRef.current, ...rounded, page: 1 });
+          if (!writable && toBounds(searchRef.current) === null) return;
+          if (writable && sameViewport(toBounds(searchRef.current), rounded)) return;
+
+          const next = propertySearchToParams(
+            writable
+              ? { ...searchRef.current, ...rounded, page: 1 }
+              : {
+                  ...searchRef.current,
+                  n: undefined,
+                  s: undefined,
+                  e: undefined,
+                  w: undefined,
+                  page: 1,
+                },
+          );
           const query = next.toString();
-          startTransition(() => {
-            router.replace(query ? `/properties?${query}` : "/properties", { scroll: false });
+
+          transitionRef.current?.(() => {
+            routerRef.current.replace(query ? `/properties?${query}` : "/properties", {
+              scroll: false,
+            });
           });
         }, PAN_DEBOUNCE_MS);
       });
@@ -138,7 +194,7 @@ export function PropertyMap({ search, pins, withoutLocation, pinsTruncated }: Pr
       mapRef.current = null;
       layerRef.current = null;
     };
-  }, [router, startTransition]);
+  }, []);
 
   useEffect(() => {
     const layer = layerRef.current;
@@ -202,14 +258,16 @@ export function PropertyMap({ search, pins, withoutLocation, pinsTruncated }: Pr
           {isPending ? <span aria-live="polite">Updating map…</span> : null}
         </p>
       </div>
-      <div
-        aria-label="Map of listings"
-        className={`h-[320px] w-full bg-surface-secondary transition-opacity md:h-[420px] ${
-          isPending ? "opacity-60" : ""
-        }`.trim()}
-        ref={containerRef}
-        role="region"
-      />
+      {/* React must never rewrite the map container class: Leaflet adds its own classes there,
+          and a pending-state class on this element wipes them, which unmaps the whole view. */}
+      <div className={isPending ? "opacity-60 transition-opacity" : "transition-opacity"}>
+        <div
+          aria-label="Map of listings"
+          className="h-[320px] w-full bg-surface-secondary md:h-[420px]"
+          ref={containerRef}
+          role="region"
+        />
+      </div>
     </Card>
   );
 }
