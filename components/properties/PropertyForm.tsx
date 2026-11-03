@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { startTransition, useActionState, useEffect } from "react";
+import { startTransition, useActionState, useEffect, type WheelEvent } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { createProperty, updateProperty } from "@/actions/properties";
@@ -97,6 +97,15 @@ export function PropertyForm({
       if (messages?.[0]) setError(name as FieldName, { type: "server", message: messages[0] });
     }
   }, [state, mode, router, setError]);
+
+  /**
+   * Chrome steps a focused `type="number"` input on wheel, so scrolling the page with the pointer
+   * over the price box can change the value by a few dollars without any typing. Blurring first
+   * makes scrolling scroll, not edit.
+   */
+  function blurOnWheel(event: WheelEvent<HTMLInputElement>) {
+    event.currentTarget.blur();
+  }
 
   function fieldProps(name: FieldName, hasHint = false) {
     return {
@@ -191,6 +200,7 @@ export function PropertyForm({
                 inputMode="numeric"
                 min={0}
                 placeholder="4"
+                onWheel={blurOnWheel}
                 step={1}
                 type="number"
                 {...register("bedrooms")}
@@ -208,6 +218,7 @@ export function PropertyForm({
                 inputMode="decimal"
                 min={0}
                 placeholder="3.5"
+                onWheel={blurOnWheel}
                 step={0.5}
                 type="number"
                 {...register("bathrooms")}
@@ -225,6 +236,7 @@ export function PropertyForm({
                 inputMode="decimal"
                 min={0}
                 placeholder="10,890"
+                onWheel={blurOnWheel}
                 step="any"
                 type="number"
                 {...register("lotSize")}
@@ -312,6 +324,7 @@ export function PropertyForm({
                   inputMode="numeric"
                   min={0}
                   placeholder="450000"
+                  onWheel={blurOnWheel}
                   step={1}
                   type="number"
                   {...register("price")}
