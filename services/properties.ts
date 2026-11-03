@@ -20,11 +20,13 @@ import type {
   PropertyImage,
   PropertyListItem,
   PropertyListPage,
+  PropertyPin,
   PropertySearchResult,
   PropertyStatus,
 } from "@/types/property";
 import {
   defaultPropertySearch,
+  toBounds,
   type PropertySearchInput,
 } from "@/validations/property-search";
 import { isImageMedia } from "@/validations/media";
@@ -34,6 +36,7 @@ export const FEATURED_PROPERTY_LIMIT = 6;
 export const DASHBOARD_PAGE_SIZE = 20;
 export const LIST_CACHE_TTL_SECONDS = 60;
 export const DETAIL_CACHE_TTL_SECONDS = 300;
+export const PIN_LIMIT = 500;
 
 /** How a write's coordinates were obtained; `rate_limited` is reported back to the caller. */
 export type GeocodeStatus = "verified" | "unverified" | "rate_limited";
@@ -102,6 +105,11 @@ function stableJson(values: Record<string, string | number | null>): string {
   return JSON.stringify(Object.fromEntries(keys.map((key) => [key, values[key]])));
 }
 
+function boundsKey(search: PropertySearchInput): string | null {
+  const bounds = toBounds(search);
+  return bounds ? `${bounds.n},${bounds.s},${bounds.e},${bounds.w}` : null;
+}
+
 async function listCacheKey(search: PropertySearchInput): Promise<string> {
   const queryHash = await sha256Hex(
     stableJson({
@@ -113,6 +121,7 @@ async function listCacheKey(search: PropertySearchInput): Promise<string> {
       sort: search.sort,
       page: search.page,
       pageSize: search.pageSize,
+      bounds: boundsKey(search),
     }),
   );
   return propertyListKey(await getListVersion(), queryHash);
@@ -124,7 +133,8 @@ function isCachedSearch(value: PropertySearchResult | null): value is PropertySe
     Array.isArray(value.items) &&
     typeof value.total === "number" &&
     typeof value.page === "number" &&
-    typeof value.pageCount === "number"
+    typeof value.pageCount === "number" &&
+    Array.isArray(value.pins)
   );
 }
 
@@ -248,6 +258,17 @@ async function runSearch(
     conditions.push(sql`${properties.bathrooms} >= ${search.minBathrooms}`);
   }
 
+  const withoutBoundsWhere = and(...conditions);
+
+  const bounds = toBounds(search);
+  if (bounds) {
+    conditions.push(
+      sql`${properties.latitude} IS NOT NULL AND ${properties.longitude} IS NOT NULL
+        AND ${properties.latitude} BETWEEN ${bounds.s} AND ${bounds.n}
+        AND ${properties.longitude} BETWEEN ${bounds.w} AND ${bounds.e}`,
+    );
+  }
+
   const where = and(...conditions);
   const db = getDb();
 
@@ -271,12 +292,46 @@ async function runSearch(
     .limit(search.pageSize)
     .offset((page - 1) * search.pageSize);
 
+  const pinRows = await db
+    .select({
+      id: properties.id,
+      latitude: properties.latitude,
+      longitude: properties.longitude,
+      addressLine1: properties.addressLine1,
+    })
+    .from(properties)
+    .where(where)
+    .orderBy(asc(properties.id))
+    .limit(PIN_LIMIT + 1);
+
+  const pins: PropertyPin[] = [];
+  for (const row of pinRows) {
+    if (row.latitude === null || row.longitude === null) continue;
+    pins.push({
+      id: row.id,
+      latitude: row.latitude,
+      longitude: row.longitude,
+      addressLine1: row.addressLine1,
+    });
+    if (pins.length === PIN_LIMIT) break;
+  }
+
+  const [missingRow] = await db
+    .select({ total: count() })
+    .from(properties)
+    .where(
+      and(withoutBoundsWhere, sql`(${properties.latitude} IS NULL OR ${properties.longitude} IS NULL)`),
+    );
+
   return {
     items: await toListItems(rows),
     total,
     page,
     pageSize: search.pageSize,
     pageCount,
+    pins,
+    pinsTruncated: pinRows.length > PIN_LIMIT,
+    withoutLocation: missingRow?.total ?? 0,
   };
 }
 

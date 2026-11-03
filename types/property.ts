@@ -73,4 +73,16 @@ export type PropertyListPage = {
   pageCount: number;
 };
 
-export type PropertySearchResult = PropertyListPage;
+/** A pin carries listing fields only — no owner id, no media. */
+export type PropertyPin = {
+  id: string;
+  latitude: number;
+  longitude: number;
+  addressLine1: string;
+};
+
+export type PropertySearchResult = PropertyListPage & {
+  pins: PropertyPin[];
+  pinsTruncated: boolean;
+  withoutLocation: number;
+};
