@@ -515,6 +515,7 @@ The map on `/properties` is the only third-party client widget in the app.
 - `scrollWheelZoom: false`: a wheel-capturing map stops the page scrolling, which is worse than losing wheel zoom on a browsing page.
 - Call `map.remove()` in the effect cleanup; mounting twice on the same container throws.
 
+- `next.config.ts` headers are read once when the dev server starts: after changing the CSP, restart `cf dev`. A hot reload keeps serving the old header, which silently blocks any new image origin (seen 2026-11-03: the map rendered pins over a grey panel until the 35324 dev process was restarted).
 ## Tailwind CSS v4
 
 - Tokens are declared in `app/globals.css` under `@theme`. No `tailwind.config.ts` color config.
