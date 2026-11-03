@@ -292,6 +292,8 @@ async function runSearch(
     .limit(search.pageSize)
     .offset((page - 1) * search.pageSize);
 
+  // Pins need coordinates. Filtering them in SQL keeps the `PIN_LIMIT + 1` window full of rows that
+  // can actually become pins, so the count and `pinsTruncated` stay honest.
   const pinRows = await db
     .select({
       id: properties.id,
@@ -300,12 +302,13 @@ async function runSearch(
       addressLine1: properties.addressLine1,
     })
     .from(properties)
-    .where(where)
+    .where(and(where, sql`${properties.latitude} IS NOT NULL AND ${properties.longitude} IS NOT NULL`))
     .orderBy(asc(properties.id))
     .limit(PIN_LIMIT + 1);
 
   const pins: PropertyPin[] = [];
   for (const row of pinRows) {
+    // The query already excludes these; the check narrows the row type and guards the loop.
     if (row.latitude === null || row.longitude === null) continue;
     pins.push({
       id: row.id,

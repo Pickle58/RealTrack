@@ -459,7 +459,7 @@ describe("map bounds", () => {
     expect(toBounds(parsed)).toBeNull();
   });
 
-  it("writes bounds at three decimals and omits them when absent", () => {
+  it("writes each corner unchanged and omits bounds when absent", () => {
     const withBounds = propertySearchToParams({
       ...defaultPropertySearch,
       n: 40.7124,
@@ -468,8 +468,28 @@ describe("map bounds", () => {
       w: -74.0258,
     });
 
-    expect(withBounds.toString()).toBe("n=40.712&s=40.691&e=-73.944&w=-74.026");
+    expect(withBounds.toString()).toBe("n=40.7124&s=40.6912&e=-73.9442&w=-74.0258");
     expect(propertySearchToParams(defaultPropertySearch).toString()).toBe("");
+  });
+
+  it("keeps a viewport narrower than a thousandth of a degree", () => {
+    const narrow = {
+      ...defaultPropertySearch,
+      n: 40.7125,
+      s: 40.71245,
+      e: -73.9442,
+      w: -73.94425,
+    };
+
+    expect(propertySearchToParams(narrow).toString()).toBe(
+      "n=40.7125&s=40.71245&e=-73.9442&w=-73.94425",
+    );
+    expect(toBounds(parsePropertySearch(Object.fromEntries(propertySearchToParams(narrow))))).toEqual({
+      n: 40.7125,
+      s: 40.71245,
+      e: -73.9442,
+      w: -73.94425,
+    });
   });
 
   it("exposes the viewport as one object", () => {

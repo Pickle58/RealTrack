@@ -107,11 +107,10 @@ export function propertySearchToParams(search: PropertySearchInput): URLSearchPa
 
   const bounds = toBounds(search);
   if (bounds) {
-    const round = (value: number) => Math.round(value * 1000) / 1000;
-    params.set("n", String(round(bounds.n)));
-    params.set("s", String(round(bounds.s)));
-    params.set("e", String(round(bounds.e)));
-    params.set("w", String(round(bounds.w)));
+    params.set("n", String(bounds.n));
+    params.set("s", String(bounds.s));
+    params.set("e", String(bounds.e));
+    params.set("w", String(bounds.w));
   }
   return params;
 }

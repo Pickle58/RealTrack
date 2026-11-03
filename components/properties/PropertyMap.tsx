@@ -16,8 +16,6 @@ import {
 import "leaflet/dist/leaflet.css";
 
 const PAN_DEBOUNCE_MS = 400;
-/** Rounded corners move by at most half a thousandth of a degree, so the tolerance sits just above it. */
-const BOUNDS_TOLERANCE = 0.0015;
 const DEFAULT_CENTER: [number, number] = [39.8283, -98.5795];
 const DEFAULT_ZOOM = 4;
 const MARKER_ICON_SIZE = 18;
@@ -35,10 +33,11 @@ type Props = {
   pinsTruncated: boolean;
 };
 
-function roundCorner(value: number): number {
-  return Math.round(value * 1000) / 1000;
-}
-
+/**
+ * Three decimals keep the URL short. Rounding outward never collapses the box — `ceil(n)` stays
+ * above `floor(s)` for any viewport with height — and a box a thousandth wider than the screen still
+ * contains every pin that is visible.
+ */
 function roundBounds(bounds: {
   getNorth(): number;
   getSouth(): number;
@@ -46,10 +45,10 @@ function roundBounds(bounds: {
   getWest(): number;
 }): MapBounds {
   return {
-    n: roundCorner(bounds.getNorth()),
-    s: roundCorner(bounds.getSouth()),
-    e: roundCorner(bounds.getEast()),
-    w: roundCorner(bounds.getWest()),
+    n: Math.ceil(bounds.getNorth() * 1000) / 1000,
+    s: Math.floor(bounds.getSouth() * 1000) / 1000,
+    e: Math.ceil(bounds.getEast() * 1000) / 1000,
+    w: Math.floor(bounds.getWest() * 1000) / 1000,
   };
 }
 
@@ -73,14 +72,10 @@ function isExpressible(bounds: MapBounds): boolean {
   );
 }
 
+/** Both sides are already rounded to a thousandth, so an exact match means "the same viewport". */
 function sameViewport(a: MapBounds | null, b: MapBounds): boolean {
   if (!a) return false;
-  return (
-    Math.abs(a.n - b.n) < BOUNDS_TOLERANCE &&
-    Math.abs(a.s - b.s) < BOUNDS_TOLERANCE &&
-    Math.abs(a.e - b.e) < BOUNDS_TOLERANCE &&
-    Math.abs(a.w - b.w) < BOUNDS_TOLERANCE
-  );
+  return a.n === b.n && a.s === b.s && a.e === b.e && a.w === b.w;
 }
 
 function corners(bounds: MapBounds): [[number, number], [number, number]] {
@@ -104,6 +99,14 @@ export function PropertyMap({ search, pins, withoutLocation, pinsTruncated }: Pr
    */
   const routerRef = useRef(router);
   const transitionRef = useRef<ReturnType<typeof useTransition>[1] | null>(null);
+  /** Debounced pan writes live in a ref so a navigation can cancel one that is still pending. */
+  const panTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  /**
+   * The viewport a `fitBounds` call produced. A fit emits `moveend` exactly like a gesture, and
+   * Leaflet snaps the fitted box outward to whole pixels, so writing that event back would replace
+   * the bounds the URL asked for with a wider box.
+   */
+  const fittedViewportRef = useRef<MapBounds | null>(null);
   const [ready, setReady] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -125,9 +128,19 @@ export function PropertyMap({ search, pins, withoutLocation, pinsTruncated }: Pr
     pinsRef.current = pins;
   }, [pins]);
 
+  /**
+   * A new URL means a navigation owns the view now (filters, sort, page). A pan still inside its
+   * debounce would otherwise land afterwards and rewrite that navigation with the older viewport.
+   */
+  const searchKey = propertySearchToParams(search).toString();
+
+  useEffect(() => {
+    if (panTimerRef.current) clearTimeout(panTimerRef.current);
+    panTimerRef.current = undefined;
+  }, [searchKey]);
+
   useEffect(() => {
     let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
 
     void (async () => {
       const leaflet = await import("leaflet");
@@ -154,9 +167,17 @@ export function PropertyMap({ search, pins, withoutLocation, pinsTruncated }: Pr
       }
 
       map.on("moveend", () => {
-        if (timer) clearTimeout(timer);
-        timer = setTimeout(() => {
+        if (panTimerRef.current) clearTimeout(panTimerRef.current);
+        panTimerRef.current = setTimeout(() => {
+          panTimerRef.current = undefined;
           const rounded = roundBounds(map.getBounds());
+
+          // This event came from the fit above, not from a gesture: keep the requested bounds.
+          if (fittedViewportRef.current && sameViewport(fittedViewportRef.current, rounded)) {
+            fittedViewportRef.current = null;
+            return;
+          }
+
           const writable = isExpressible(rounded);
 
           if (!writable && toBounds(searchRef.current) === null) return;
@@ -189,7 +210,8 @@ export function PropertyMap({ search, pins, withoutLocation, pinsTruncated }: Pr
 
     return () => {
       cancelled = true;
-      if (timer) clearTimeout(timer);
+      if (panTimerRef.current) clearTimeout(panTimerRef.current);
+      panTimerRef.current = undefined;
       mapRef.current?.remove();
       mapRef.current = null;
       layerRef.current = null;
@@ -244,6 +266,9 @@ export function PropertyMap({ search, pins, withoutLocation, pinsTruncated }: Pr
     if (sameViewport(next, roundBounds(map.getBounds()))) return;
 
     map.fitBounds(corners(next), { animate: false });
+    // Leaflet applies `animate: false` synchronously, so this is the fitted viewport; recording it
+    // keeps the `moveend` it just emitted from being written back as a wider box.
+    fittedViewportRef.current = roundBounds(map.getBounds());
   }, [search, ready]);
 
   return (
