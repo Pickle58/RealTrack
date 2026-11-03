@@ -309,6 +309,7 @@ Each row is exercised by build-plan feature 18; the simulations and their eviden
 Rules the AI agent must never violate:
 
 - Components contain no data fetching, DB, KV, or R2 logic. `app/` pages call `services/` only.
+- Pins come from the same conditions as the grid: the viewport is part of the list cache key (`boundsKey`), `pins` is capped at `PIN_LIMIT = 500`, and a listing with null coordinates is counted as `withoutLocation` rather than pinned or ignored.
 - Every Server Action starts with `requireUser()` (Clerk handles sign-in and sign-up) and an explicit ownership or role check. Never trust a `propertyId` from the client without checking `owner_id`.
 - Anonymous and `viewer` queries must filter `status = 'active'`; agents also see their own rows, and admins see every row. Draft, sold, and off-market properties are never public.
 - All D1 access uses Drizzle's parameterized builders. Never concatenate SQL strings.

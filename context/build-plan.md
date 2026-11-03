@@ -400,6 +400,34 @@ Replace the stubs and placeholders with real authentication using the Clerk CLI.
 
 ---
 
+## Phase 8 — Browse experience
+
+### 20 Interactive map
+
+A map above the grid; the viewport is a filter.
+
+**UI:**
+
+- `PropertyMap` above `PropertyGrid` on `/properties`: one marker per active listing in the viewport, clicking through to `/properties/[id]`.
+- Panning or zooming writes rounded corners (`n`, `s`, `e`, `w`) to the URL and re-renders pins and grid from one search.
+- A count row names what is in view, how many listings have no verified location, and when pins are capped.
+
+**Logic:**
+
+- `validations/property-search.ts`: a viewport is four corners or nothing.
+- `services/properties.ts`: bounding-box predicate, `pins` (capped at 500), `withoutLocation`, bounds in the KV list key.
+- Leaflet from `NEXT_PUBLIC_MAP_TILE_URL`, dynamically imported client-side; the tile origin joins the CSP `img-src`.
+
+**Done when:**
+
+- [ ] Panning narrows both pins and grid from one search
+- [ ] A viewport URL restores the same map and grid
+- [ ] Listings without coordinates are counted, not silently dropped
+- [ ] Tiles load under the production CSP
+- [ ] `pnpm lint && pnpm typecheck && pnpm test && pnpm build` pass
+
+---
+
 ## Feature Count
 
 | Phase     | Name                         | Features |
@@ -412,4 +440,5 @@ Replace the stubs and placeholders with real authentication using the Clerk CLI.
 | 5         | Media (R2)                   | 2        |
 | 6         | Caching and Events           | 1        |
 | 7         | Hardening and Release        | 4        |
-| **Total** |                              | **19**   |
+| 8         | Browse experience            | 1        |
+| **Total** |                              | **20**   |

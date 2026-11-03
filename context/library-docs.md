@@ -502,6 +502,19 @@ Verify with `curl -s -D - -o /dev/null http://localhost:5173/properties | grep -
 
 ---
 
+## Leaflet
+
+The map on `/properties` is the only third-party client widget in the app.
+
+- `import("leaflet")` inside `useEffect`, never at module scope: Leaflet touches `window` on import and the page is a server component.
+- `import "leaflet/dist/leaflet.css"` is the one static import; without it the tiles render unpositioned.
+- Tiles are raster `<img>` requests, which is why the CSP needs the tile origin in `img-src` only (no `connect-src`, no `script-src`, no `eval`).
+- `NEXT_PUBLIC_MAP_TILE_URL` and `NEXT_PUBLIC_MAP_TILE_ATTRIBUTION` are inlined at build time; `next.config.ts` parses the CSP origin from the same variable, so changing providers is an env change plus a rebuild.
+- OSM standard tiles are development-only; their tile-use policy does not cover production traffic. Pick a provider whose terms allow it before the map is public.
+- Markers use `L.divIcon({ html: element })` with a DOM node, never an HTML string: an address is user data.
+- `scrollWheelZoom: false`: a wheel-capturing map stops the page scrolling, which is worse than losing wheel zoom on a browsing page.
+- Call `map.remove()` in the effect cleanup; mounting twice on the same container throws.
+
 ## Tailwind CSS v4
 
 - Tokens are declared in `app/globals.css` under `@theme`. No `tailwind.config.ts` color config.

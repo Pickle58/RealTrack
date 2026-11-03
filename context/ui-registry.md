@@ -194,6 +194,15 @@ Installed with the shadcn CLI (style `new-york`, base colour `neutral`, CSS vari
 - Used in: `/properties`
 - Notes: holds the only filter form state and writes every applied value through `propertySearchToParams`, so the URL is the source of truth; the page remounts it with `key={filterKey}` and it resets from the prop when the sheet closes without applying. The same `filterFields` element is rendered in the desktop card and inside the `Sheet` (mounted one at a time), which is why the fields carry no `name` or `id`.
 
+### PropertyMap
+
+- Path: `components/properties/PropertyMap.tsx`
+- Type: client (Leaflet instance, pan handler, `useTransition`)
+- Props: `{ search: PropertySearchInput; pins: PropertyPin[]; withoutLocation: number; pinsTruncated: boolean }`
+- Classes: `Card className="gap-0 overflow-hidden p-0"`; count row `flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3` with the pin count in `text-sm font-medium text-text-primary` and the caveats in `text-xs text-text-muted`; map panel `h-[320px] w-full bg-surface-secondary transition-opacity md:h-[420px]`, dimmed with `opacity-60` while pending; markers are `block size-[18px] rounded-full border-2 border-surface bg-accent shadow-sm`
+- Used in: `/properties`
+- Notes: Leaflet is imported inside `useEffect` (never on the server) and tiles come from `NEXT_PUBLIC_MAP_TILE_URL`. `scrollWheelZoom` is off so the page keeps scrolling over the map. Panning rounds corners to three decimals and calls `router.replace` with `scroll: false`, skipping the write when the viewport already matches within 0.0015 degrees; a URL that disagrees with the map re-fits it. Markers are `divIcon` elements built with `document.createElement`, so no listing text goes through an HTML string. Pins render from props only: the component never fetches.
+
 ### EmptyState
 
 - Path: `components/ui/EmptyState.tsx`
@@ -303,3 +312,4 @@ Mapping lives in `ui-tokens.md`: Active `bg-success-light text-success-foregroun
 | PropertyPhoto    | `components/properties/PropertyPhoto.tsx` | 5 | done (feature 14) |
 | PropertyDocuments| `components/properties/PropertyDocuments.tsx`| 5 | done (feature 14) |
 | ConfirmDialog    | `components/ui/ConfirmDialog.tsx`      | 1   | done (feature 05) |
+| PropertyMap      | `components/properties/PropertyMap.tsx`| 8   | done (feature 20) |
