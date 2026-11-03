@@ -532,3 +532,63 @@ describe("owner-scoped reads", () => {
     expect(clamped.items).toHaveLength(5);
   });
 });
+
+describe("map viewport", () => {
+  const viewport = { n: 41, s: 40, e: -73, w: -75 };
+
+  it("pins only what is inside the box while the grid still paginates", async () => {
+    const insideA = await seedProperty(worker, { latitude: 40.5, longitude: -74 });
+    const insideB = await seedProperty(worker, { latitude: 40.7, longitude: -73.5 });
+    await seedProperty(worker, { latitude: 45, longitude: -74 });
+
+    const result = await properties.search(search({ ...viewport, pageSize: 1 }), null);
+
+    expect(result.total).toBe(2);
+    expect(result.items).toHaveLength(1);
+    expect(result.pins.map((pin) => pin.id).sort()).toEqual([insideA, insideB].sort());
+    expect(result.pinsTruncated).toBe(false);
+  });
+
+  it("counts listings without coordinates instead of pinning them", async () => {
+    await seedProperty(worker, { latitude: null, longitude: null });
+    await seedProperty(worker, { latitude: 40.5, longitude: -74 });
+
+    const result = await properties.search(search(viewport), null);
+
+    expect(result.pins).toHaveLength(1);
+    expect(result.withoutLocation).toBe(1);
+    expect(result.total).toBe(1);
+  });
+
+  it("returns no pins for an empty viewport", async () => {
+    await seedProperty(worker, { latitude: 45, longitude: -74 });
+
+    const result = await properties.search(search(viewport), null);
+
+    expect(result.pins).toEqual([]);
+    expect(result.total).toBe(0);
+    expect(result.pinsTruncated).toBe(false);
+  });
+
+  it("never serves one viewport cached page to another", async () => {
+    const north = await seedProperty(worker, { latitude: 40.5, longitude: -74 });
+    const south = await seedProperty(worker, { latitude: 35, longitude: -74 });
+
+    const first = await properties.search(search({ n: 41, s: 40, e: -73, w: -75 }), null);
+    const second = await properties.search(search({ n: 36, s: 34, e: -73, w: -75 }), null);
+
+    expect(first.pins.map((pin) => pin.id)).toEqual([north]);
+    expect(second.pins.map((pin) => pin.id)).toEqual([south]);
+  });
+
+  it("caps pins at PIN_LIMIT and flags the truncation", async () => {
+    for (let index = 0; index < 505; index += 1) {
+      await seedProperty(worker, { latitude: 40.5, longitude: -74 });
+    }
+
+    const result = await properties.search(search(viewport), null);
+
+    expect(result.pins).toHaveLength(properties.PIN_LIMIT);
+    expect(result.pinsTruncated).toBe(true);
+  });
+});

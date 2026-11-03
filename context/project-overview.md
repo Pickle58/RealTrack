@@ -95,6 +95,7 @@ Owner or admin edits fields (re-geocodes if address changed) or deletes the prop
 - Houses and vacant land in one record: optional bedrooms/baths plus lot size (sq ft or acres) and electric service
 - Address normalization and lat/lng via external geocoding API
 - Search and filter by address text, price, bedrooms, bathrooms, status
+- Browsing map on `/properties`: panning and zooming narrow the pins and the grid together
 - Media upload, list, delete (images, floor plans, documents)
 - Clerk authentication (prebuilt components); roles viewer / agent / admin via Clerk public metadata; ownership checks
 - KV caching of list results and property detail with event-driven invalidation
@@ -108,7 +109,7 @@ Owner or admin edits fields (re-geocodes if address changed) or deletes the prop
 - Image resizing / processing pipeline — originals are stored and served as-is
 - Filters beyond address, bedrooms, bathrooms, price, status
 - Payments, offers, messaging, saved searches, favorites
-- Interactive map UI — coordinates are stored and shown as text plus an external map link
+- Interactive map on `/properties` — pins for the active listings in the viewport, with the grid following the same bounds; no clustering, polygon or radius search. The detail page keeps its coordinates line and external map link.
 - Custom-built auth screens — Clerk's prebuilt `<SignIn />` / `<SignUp />` are used. Social login is switched on in the Clerk Dashboard, not coded.
 - Clerk Organizations / shared team listings — ownership is per user for v1
 

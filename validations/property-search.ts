@@ -23,6 +23,35 @@ function optionalNumberParam(max: number, integer = false) {
     .catch(undefined);
 }
 
+export const MAX_LATITUDE = 85;
+export const MAX_LONGITUDE = 180;
+
+export type MapBounds = { n: number; s: number; e: number; w: number };
+
+/** A viewport is four corners or nothing: half a box would silently filter along one line. */
+export function toBounds(search: {
+  n?: number;
+  s?: number;
+  e?: number;
+  w?: number;
+}): MapBounds | null {
+  const { n, s, e, w } = search;
+  if (n === undefined || s === undefined || e === undefined || w === undefined) return null;
+  if (n <= s || e <= w) return null;
+  return { n, s, e, w };
+}
+
+function optionalCoordinateParam(max: number) {
+  const coordinate = z.coerce.number().min(-max).max(max);
+
+  return z
+    .preprocess(
+      (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+      coordinate.optional(),
+    )
+    .catch(undefined);
+}
+
 export const propertySortSchema = z.enum(propertySortValues).catch("newest");
 
 export const propertySearchSchema = z.object({
@@ -34,7 +63,16 @@ export const propertySearchSchema = z.object({
   sort: propertySortSchema,
   page: pageParamSchema,
   pageSize: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).catch(DEFAULT_PAGE_SIZE),
-});
+  n: optionalCoordinateParam(MAX_LATITUDE),
+  s: optionalCoordinateParam(MAX_LATITUDE),
+  e: optionalCoordinateParam(MAX_LONGITUDE),
+  w: optionalCoordinateParam(MAX_LONGITUDE),
+})
+  .transform((search) =>
+    toBounds(search)
+      ? search
+      : { ...search, n: undefined, s: undefined, e: undefined, w: undefined },
+  );
 
 export type PropertySearchInput = z.infer<typeof propertySearchSchema>;
 
@@ -66,5 +104,14 @@ export function propertySearchToParams(search: PropertySearchInput): URLSearchPa
   if (search.page > 1) params.set("page", String(search.page));
   if (search.pageSize !== DEFAULT_PAGE_SIZE) params.set("pageSize", String(search.pageSize));
 
+
+  const bounds = toBounds(search);
+  if (bounds) {
+    const round = (value: number) => Math.round(value * 1000) / 1000;
+    params.set("n", String(round(bounds.n)));
+    params.set("s", String(round(bounds.s)));
+    params.set("e", String(round(bounds.e)));
+    params.set("w", String(round(bounds.w)));
+  }
   return params;
 }

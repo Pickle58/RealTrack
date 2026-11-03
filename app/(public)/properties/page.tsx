@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { PropertyGrid } from "@/components/properties/PropertyGrid";
+import { PropertyMap } from "@/components/properties/PropertyMap";
 import { SearchFilters } from "@/components/properties/SearchFilters";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -30,6 +31,13 @@ export default async function PropertiesPage({
       </header>
 
       <SearchFilters initial={search} key={filterKey} />
+
+      <PropertyMap
+        pins={result.pins}
+        pinsTruncated={result.pinsTruncated}
+        search={search}
+        withoutLocation={result.withoutLocation}
+      />
 
       {result.items.length > 0 ? (
         <>

@@ -28,6 +28,8 @@ import {
   defaultPropertySearch,
   propertySearchToParams,
   propertySortSchema,
+  toBounds,
+  type MapBounds,
   type PropertySearchInput,
 } from "@/validations/property-search";
 
@@ -68,7 +70,7 @@ function toNumber(value: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function toSearchInput(values: FilterValues): PropertySearchInput {
+function toSearchInput(values: FilterValues, bounds: MapBounds | null): PropertySearchInput {
   return {
     q: values.q.trim(),
     minPrice: toNumber(values.minPrice),
@@ -78,6 +80,7 @@ function toSearchInput(values: FilterValues): PropertySearchInput {
     sort: propertySortSchema.parse(values.sort),
     page: 1,
     pageSize: DEFAULT_PAGE_SIZE,
+    ...(bounds ?? {}),
   };
 }
 
@@ -94,9 +97,9 @@ export function SearchFilters({ initial }: { initial: PropertySearchInput }) {
     values.minBathrooms,
   ].filter((value) => value.trim() !== "").length;
 
-  function apply(next: FilterValues) {
+  function apply(next: FilterValues, bounds: MapBounds | null = toBounds(initial)) {
     setValues(next);
-    const query = propertySearchToParams(toSearchInput(next)).toString();
+    const query = propertySearchToParams(toSearchInput(next, bounds)).toString();
     setSheetOpen(false);
     startTransition(() => router.push(query ? `/properties?${query}` : "/properties"));
   }
@@ -230,7 +233,7 @@ export function SearchFilters({ initial }: { initial: PropertySearchInput }) {
                 <Button disabled={isPending} onClick={() => apply(values)} type="button">
                   Apply filters
                 </Button>
-                <Button onClick={() => apply(toFilterValues(defaultPropertySearch))} type="button" variant="ghost">
+                <Button onClick={() => apply(toFilterValues(defaultPropertySearch), null)} type="button" variant="ghost">
                   Clear filters
                 </Button>
               </SheetFooter>
@@ -246,7 +249,7 @@ export function SearchFilters({ initial }: { initial: PropertySearchInput }) {
             Apply filters
           </Button>
           <Button
-            onClick={() => apply(toFilterValues(defaultPropertySearch))}
+            onClick={() => apply(toFilterValues(defaultPropertySearch), null)}
             type="button"
             variant="ghost"
           >
