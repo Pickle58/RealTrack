@@ -12,11 +12,28 @@ const isDevelopment = process.env.NODE_ENV !== "production";
  */
 const productionClerkHost = "https://clerk.elderpickle.com";
 
+const mapTileUrl =
+  process.env.NEXT_PUBLIC_MAP_TILE_URL ?? "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+
+/**
+ * The tile host is the only third-party image origin this app loads. A malformed value must not
+ * take the whole page down, so a bad URL falls back to the development host.
+ */
+function originOf(url: string): string {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return "https://tile.openstreetmap.org";
+  }
+}
+
+const mapTileOrigin = originOf(mapTileUrl);
+
 const contentSecurityPolicy = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""} https://*.clerk.accounts.dev https://*.clerk.com ${productionClerkHost} https://challenges.cloudflare.com https://*.protect.clerk.com`,
   `connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com ${productionClerkHost} https://clerk-telemetry.com https://*.clerk-telemetry.com https://challenges.cloudflare.com https://*.protect.clerk.com:*${isDevelopment ? " ws://localhost:* ws://127.0.0.1:*" : ""}`,
-  `img-src 'self' data: blob: https://img.clerk.com https://images.clerk.dev https://*.clerk.accounts.dev https://*.clerk.com ${productionClerkHost}`,
+  `img-src 'self' data: blob: https://img.clerk.com https://images.clerk.dev https://*.clerk.accounts.dev https://*.clerk.com ${productionClerkHost} ${mapTileOrigin}`,
   "font-src 'self' data: https://fonts.gstatic.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "worker-src 'self' blob:",
